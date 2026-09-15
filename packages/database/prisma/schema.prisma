@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  TECNICO
+  ATENDENTE
+}
+
+enum OrderStatus {
+  CRIADA
+  AGUARDANDO_APROVACAO
+  APROVADA
+  EM_REPARO
+  TESTES_FINAIS
+  PRONTO_RETIRADA
+  FINALIZADA
+  CANCELADA
+}
+
+enum OrderItemType {
+  PECA
+  SERVICO_MAO_DE_OBRA
+}
+
+enum StockMovementType {
+  ENTRADA
+  RESERVA
+  CANCELAMENTO_RESERVA
+  BAIXA_REPARO
+  PERDA_SUCATA
+  AJUSTE_INVENTARIO
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(TECNICO)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedOrders ServiceOrder[]       @relation("TechnicianOrders")
+  createdOrders  ServiceOrder[]       @relation("AttendantOrders")
+  stockMovements StockMovement[]
+  statusChanges  OrderStatusHistory[]
+
+  @@map("users")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  document  String?  @unique
+  email     String?
+  phone     String
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  devices Device[]
+  orders  ServiceOrder[]
+
+  @@index([phone])
+  @@index([name])
+  @@map("customers")
+}
+
+model Device {
+  id           String   @id @default(uuid())
+  customerId   String
+  brand        String
+  model        String
+  imei         String   @unique
+  serialNumber String?
+  color        String?
+  passcode     String?
+  notes        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  customer Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  orders   ServiceOrder[]
+
+  @@index([imei])
+  @@index([model])
+  @@map("devices")
+}
+
+model ServiceOrder {
+  id                String      @id @default(uuid())
+  orderNumber       Int         @unique @default(autoincrement())
+  publicToken       String      @unique @default(uuid())
+  customerId        String
+  deviceId          String
+  technicianId      String?
+  attendantId       String
+  status            OrderStatus @default(CRIADA)
+  entryChecklist    Json
+  reportedDefect    String
+  technicalReport   String?
+  finalObservations String?
+  totalPartsPrice   Decimal     @default(0.0) @db.Decimal(10, 2)
+  totalLaborPrice   Decimal     @default(0.0) @db.Decimal(10, 2)
+  totalDiscount     Decimal     @default(0.0) @db.Decimal(10, 2)
+  grandTotal        Decimal     @default(0.0) @db.Decimal(10, 2)
+  readyAt           DateTime?
+  approvedAt        DateTime?
+  startedAt         DateTime?
+  finishedAt        DateTime?
+  deliveredAt       DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  customer       Customer             @relation(fields: [customerId], references: [id])
+  device         Device               @relation(fields: [deviceId], references: [id])
+  technician     User?                @relation("TechnicianOrders", fields: [technicianId], references: [id])
+  attendant      User                 @relation("AttendantOrders", fields: [attendantId], references: [id])
+  items          ServiceOrderItem[]
+  stockMovements StockMovement[]
+  history        OrderStatusHistory[]
+
+  @@index([status])
+  @@index([customerId])
+  @@index([deviceId])
+  @@index([orderNumber])
+  @@index([publicToken])
+  @@map("service_orders")
+}
+
+model ServiceOrderItem {
+  id             String        @id @default(uuid())
+  serviceOrderId String
+  type           OrderItemType
+  partId         String?
+  description    String
+  quantity       Int           @default(1)
+  unitCost       Decimal       @default(0.0) @db.Decimal(10, 2)
+  unitPrice      Decimal       @default(0.0) @db.Decimal(10, 2)
+  discount       Decimal       @default(0.0) @db.Decimal(10, 2)
+  total          Decimal       @db.Decimal(10, 2)
+  warrantyDays   Int           @default(90)
+  warrantyEndsAt DateTime?
+
+  serviceOrder ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  part         Part?        @relation(fields: [partId], references: [id])
+
+  @@index([serviceOrderId])
+  @@index([partId])
+  @@map("service_order_items")
+}
+
+model OrderStatusHistory {
+  id             String      @id @default(uuid())
+  serviceOrderId String
+  changedById    String
+  fromStatus     OrderStatus
+  toStatus       OrderStatus
+  reason         String?
+  createdAt      DateTime    @default(now())
+
+  serviceOrder ServiceOrder @relation(fields: [serviceOrderId], references: [id], onDelete: Cascade)
+  changedBy    User         @relation(fields: [changedById], references: [id])
+
+  @@index([serviceOrderId])
+  @@map("order_status_history")
+}
+
+model PartCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  color       String   @default("#3b82f6")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  parts Part[]
+
+  @@map("part_categories")
+}
+
+model Part {
+  id                     String   @id @default(uuid())
+  sku                    String   @unique
+  barcode                String?  @unique
+  name                   String
+  brand                  String
+  categoryId             String
+  supplier               String?
+  description            String?
+  costPrice              Decimal  @db.Decimal(10, 2)
+  suggestedMarkupPercent Decimal  @default(100.00) @db.Decimal(5, 2)
+  sellingPrice           Decimal  @db.Decimal(10, 2)
+  stockPhysical          Int      @default(0)
+  stockReserved          Int      @default(0)
+  minStockThreshold      Int      @default(3)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  category        PartCategory        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  compatibilities PartCompatibility[]
+  movements       StockMovement[]
+  orderItems      ServiceOrderItem[]
+
+  @@index([sku])
+  @@index([barcode])
+  @@index([name])
+  @@index([categoryId])
+  @@map("parts")
+}
+
+model PartCompatibility {
+  id          String  @id @default(uuid())
+  partId      String
+  deviceBrand String
+  deviceModel String
+  notes       String?
+
+  part Part @relation(fields: [partId], references: [id], onDelete: Cascade)
+
+  @@unique([partId, deviceBrand, deviceModel])
+  @@index([deviceModel])
+  @@map("part_compatibilities")
+}
+
+model StockMovement {
+  id               String            @id @default(uuid())
+  partId           String
+  serviceOrderId   String?
+  userId           String
+  type             StockMovementType
+  quantity         Int
+  previousPhysical Int
+  newPhysical      Int
+  previousReserved Int
+  newReserved      Int
+  reason           String?
+  createdAt        DateTime          @default(now())
+
+  part         Part          @relation(fields: [partId], references: [id])
+  serviceOrder ServiceOrder? @relation(fields: [serviceOrderId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+
+  @@index([partId])
+  @@index([serviceOrderId])
+  @@index([createdAt])
+  @@map("stock_movements")
+}

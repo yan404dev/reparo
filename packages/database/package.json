@@ -1,0 +1,28 @@
+{
+  "name": "@fluxos/database",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  },
+  "devDependencies": {
+    "@fluxos/typescript-config": "workspace:*",
+    "bcrypt": "^5.1.1",
+    "@types/bcrypt": "^5.0.2",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.3",
+    "typescript": "^5.8.2"
+  }
+}
