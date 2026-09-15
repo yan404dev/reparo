@@ -1,31 +1,46 @@
-import { Injectable, ConflictException, NotFoundException, BadRequestException } from "@nestjs/common";
-import { PrismaService } from "../../prisma/prisma.service";
-import { CreatePartInput, UpdatePartInput, CreateCompatibilityInput, StockEntryInput, StockScrapInput } from "@fluxos/contracts";
+import { CreateCompatibilityInput, CreatePartInput, StockEntryInput, StockScrapInput, UpdatePartInput, formatCurrency } from "@fluxos/contracts";
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { StockMovementType } from "@prisma/client";
+import { PrismaService } from "../../prisma/prisma.service";
 
 @Injectable()
 export class InventoryService {
   constructor(private prisma: PrismaService) {}
 
+  private formatPart = (part: any) => {
+    const costPrice = Number(part.costPrice);
+    const sellingPrice = Number(part.sellingPrice);
+    const stockAvailable = part.stockPhysical - part.stockReserved;
+    return {
+      ...part,
+      costPrice,
+      suggestedMarkupPercent: Number(part.suggestedMarkupPercent),
+      sellingPrice,
+      displayCostPrice: formatCurrency(costPrice),
+      displaySellingPrice: formatCurrency(sellingPrice),
+      stockAvailable,
+      isLowStock: stockAvailable <= part.minStockThreshold,
+    };
+  };
+
   async findAll(categoryId?: string, search?: string) {
     const parts = await this.prisma.part.findMany({
       where: {
         OR: search
-          ? [
+          && [
               { name: { contains: search, mode: "insensitive" } },
               { sku: { contains: search, mode: "insensitive" } },
               { barcode: { contains: search, mode: "insensitive" } },
               { brand: { contains: search, mode: "insensitive" } },
-            ]
-          : undefined,
+            ],
         ...(categoryId
-          ? {
+         && {
               OR: [
                 { categoryId },
                 { category: { slug: categoryId } }
               ]
             }
-          : {})
+          )
       },
       include: {
         category: true,
@@ -34,13 +49,7 @@ export class InventoryService {
       orderBy: { name: "asc" },
     });
 
-    return parts.map((part) => ({
-      ...part,
-      costPrice: Number(part.costPrice),
-      suggestedMarkupPercent: Number(part.suggestedMarkupPercent),
-      sellingPrice: Number(part.sellingPrice),
-      stockAvailable: part.stockPhysical - part.stockReserved,
-    }));
+    return parts.map(this.formatPart);
   }
 
   async findCompatible(deviceModel: string) {
@@ -58,11 +67,7 @@ export class InventoryService {
     });
 
     return compatibilities.map((c) => ({
-      ...c.part,
-      costPrice: Number(c.part.costPrice),
-      suggestedMarkupPercent: Number(c.part.suggestedMarkupPercent),
-      sellingPrice: Number(c.part.sellingPrice),
-      stockAvailable: c.part.stockPhysical - c.part.stockReserved,
+      ...this.formatPart(c.part),
       compatibilityNotes: c.notes,
     }));
   }
@@ -85,13 +90,7 @@ export class InventoryService {
       throw new NotFoundException("Peça não encontrada");
     }
 
-    return {
-      ...part,
-      costPrice: Number(part.costPrice),
-      suggestedMarkupPercent: Number(part.suggestedMarkupPercent),
-      sellingPrice: Number(part.sellingPrice),
-      stockAvailable: part.stockPhysical - part.stockReserved,
-    };
+    return this.formatPart(part);
   }
 
   async create(data: CreatePartInput) {
@@ -156,13 +155,7 @@ export class InventoryService {
         }
       });
 
-      return {
-        ...part,
-        costPrice: Number(part.costPrice),
-        suggestedMarkupPercent: Number(part.suggestedMarkupPercent),
-        sellingPrice: Number(part.sellingPrice),
-        stockAvailable: part.stockPhysical - part.stockReserved,
-      };
+      return this.formatPart(part);
     });
   }
 
@@ -224,13 +217,7 @@ export class InventoryService {
       }
     });
 
-    return {
-      ...updated,
-      costPrice: Number(updated.costPrice),
-      suggestedMarkupPercent: Number(updated.suggestedMarkupPercent),
-      sellingPrice: Number(updated.sellingPrice),
-      stockAvailable: updated.stockPhysical - updated.stockReserved,
-    };
+    return this.formatPart(updated);
   }
 
   async createCompatibility(data: CreateCompatibilityInput) {
@@ -286,13 +273,7 @@ export class InventoryService {
         },
       });
 
-      return {
-        ...updatedPart,
-        costPrice: Number(updatedPart.costPrice),
-        suggestedMarkupPercent: Number(updatedPart.suggestedMarkupPercent),
-        sellingPrice: Number(updatedPart.sellingPrice),
-        stockAvailable: updatedPart.stockPhysical - updatedPart.stockReserved,
-      };
+      return this.formatPart(updatedPart);
     });
   }
 
@@ -336,13 +317,7 @@ export class InventoryService {
         },
       });
 
-      return {
-        ...updatedPart,
-        costPrice: Number(updatedPart.costPrice),
-        suggestedMarkupPercent: Number(updatedPart.suggestedMarkupPercent),
-        sellingPrice: Number(updatedPart.sellingPrice),
-        stockAvailable: updatedPart.stockPhysical - updatedPart.stockReserved,
-      };
+      return this.formatPart(updatedPart);
     });
   }
 

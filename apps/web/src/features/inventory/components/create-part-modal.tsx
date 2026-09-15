@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { PackagePlus, Calculator, Loader2 } from "lucide-react";
 import { apiRequest } from "@/lib/api";
-import { CategoryDTO } from "@fluxos/contracts";
+import { CategoryDTO, CreatePartSchema, CreatePartInput } from "@fluxos/contracts";
 import {
   Dialog,
   DialogContent,
@@ -23,28 +25,41 @@ interface CreatePartModalProps {
 export function CreatePartModal({ categories, onClose }: CreatePartModalProps) {
   const queryClient = useQueryClient();
 
-  const [sku, setSku] = useState("");
-  const [barcode, setBarcode] = useState("");
-  const [name, setName] = useState("");
-  const [brand, setBrand] = useState("");
-  const [categoryId, setCategoryId] = useState(categories[0]?.id || "");
-  const [supplier, setSupplier] = useState("");
-  const [costPrice, setCostPrice] = useState<number | "">("");
-  const [markupPercent, setMarkupPercent] = useState<number>(50);
-  const [sellingPrice, setSellingPrice] = useState<number | "">("");
-  const [initialStock, setInitialStock] = useState<number>(1);
-  const [minStockThreshold, setMinStockThreshold] = useState<number>(3);
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    formState: { errors },
+  } = useForm<CreatePartInput>({
+    resolver: zodResolver(CreatePartSchema),
+    defaultValues: {
+      sku: "",
+      barcode: "",
+      name: "",
+      brand: "",
+      categoryId: categories[0]?.id || "",
+      supplier: "",
+      costPrice: 0,
+      suggestedMarkupPercent: 50,
+      sellingPrice: 0,
+      initialStock: 1,
+      minStockThreshold: 3,
+    },
+  });
 
-  useEffect(() => {
-    if (typeof costPrice === "number" && costPrice > 0) {
-      const calculated = Number((costPrice * (1 + markupPercent / 100)).toFixed(2));
-      setSellingPrice(calculated);
+  const costPrice = watch("costPrice");
+  const markupPercent = watch("suggestedMarkupPercent");
+
+  const updateMarkup = (percent: number) => {
+    setValue("suggestedMarkupPercent", percent);
+    if (costPrice > 0) {
+      setValue("sellingPrice", Number((costPrice * (1 + percent / 100)).toFixed(2)));
     }
-  }, [costPrice, markupPercent]);
+  };
 
   const createMutation = useMutation({
-    mutationFn: (data: any) =>
+    mutationFn: (data: CreatePartInput) =>
       apiRequest("/inventory/parts", {
         method: "POST",
         body: JSON.stringify(data),
@@ -54,31 +69,10 @@ export function CreatePartModal({ categories, onClose }: CreatePartModalProps) {
       queryClient.invalidateQueries({ queryKey: ["categories"] });
       onClose();
     },
-    onError: (err: any) => {
-      setErrorMsg(err.message || "Erro ao cadastrar peça");
-    },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!sku || !name || !brand || !categoryId || typeof costPrice !== "number" || typeof sellingPrice !== "number") {
-      setErrorMsg("Preencha todos os campos obrigatórios");
-      return;
-    }
-
-    createMutation.mutate({
-      sku: sku.trim().toUpperCase(),
-      barcode: barcode.trim() || undefined,
-      name: name.trim(),
-      brand: brand.trim(),
-      categoryId,
-      supplier: supplier.trim() || undefined,
-      costPrice,
-      suggestedMarkupPercent: markupPercent,
-      sellingPrice,
-      initialStock: Number(initialStock) || 0,
-      minStockThreshold: Number(minStockThreshold) || 3,
-    });
+  const onSubmit = (data: CreatePartInput) => {
+    createMutation.mutate(data);
   };
 
   return (
@@ -94,79 +88,72 @@ export function CreatePartModal({ categories, onClose }: CreatePartModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        {errorMsg && (
+        {createMutation.error && (
           <div className="p-2.5 bg-red-50 text-red-700 text-xs rounded-md border border-red-200">
-            {errorMsg}
+            {createMutation.error.message || "Erro ao cadastrar peça"}
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1">
-                SKU (Código Interno) *
+                SKU / Código Único *
               </label>
               <Input
-                type="text"
-                value={sku}
-                onChange={(e) => setSku(e.target.value)}
-                placeholder="Ex: TELA-IP14P-OLED"
-                className="h-9 text-xs uppercase"
-                required
+                {...register("sku")}
+                placeholder="Ex: TELA-IP13-OLED"
+                className="h-8 text-xs uppercase"
               />
+              {errors.sku && <p className="text-[11px] text-destructive mt-0.5">{errors.sku.message}</p>}
             </div>
+
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1">
-                Código de Barras / EAN (Opcional)
+                Código de Barras / EAN
               </label>
               <Input
-                type="text"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                placeholder="Ex: 7891234567890"
-                className="h-9 text-xs"
+                {...register("barcode")}
+                placeholder="Opcional"
+                className="h-8 text-xs"
               />
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-foreground mb-1">
-              Nome da Peça / Descrição *
-            </label>
-            <Input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Tela OLED iPhone 14 Pro 120Hz ProMotion"
-              className="h-9 text-xs"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1">
-                Marca Compatível *
+                Nome do Componente *
               </label>
               <Input
-                type="text"
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                placeholder="Ex: Apple, Samsung"
-                className="h-9 text-xs"
-                required
+                {...register("name")}
+                placeholder="Ex: Display OLED iPhone 13"
+                className="h-8 text-xs"
               />
+              {errors.name && <p className="text-[11px] text-destructive mt-0.5">{errors.name.message}</p>}
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold text-foreground mb-1">
+                Marca / Fabricante *
+              </label>
+              <Input
+                {...register("brand")}
+                placeholder="Ex: Apple, Samsung, Foxconn"
+                className="h-8 text-xs"
+              />
+              {errors.brand && <p className="text-[11px] text-destructive mt-0.5">{errors.brand.message}</p>}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1">
                 Categoria *
               </label>
               <select
-                value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
-                className="h-9 w-full rounded-md border border-input bg-white px-2 py-1 text-xs shadow-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                required
+                {...register("categoryId")}
+                className="w-full h-8 bg-background border border-input rounded-md px-2 text-xs"
               >
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -178,69 +165,78 @@ export function CreatePartModal({ categories, onClose }: CreatePartModalProps) {
 
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1">
-                Fornecedor (Opcional)
+                Fornecedor Principal
               </label>
               <Input
-                type="text"
-                value={supplier}
-                onChange={(e) => setSupplier(e.target.value)}
-                placeholder="Ex: Distribuidora SP"
-                className="h-9 text-xs"
+                {...register("supplier")}
+                placeholder="Ex: Distribuidora Alpha"
+                className="h-8 text-xs"
               />
             </div>
           </div>
 
-          <div className="p-3 bg-muted/40 rounded-lg border border-border space-y-2.5">
+          <div className="p-3 bg-muted/40 rounded-lg border border-border space-y-3">
             <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
               <Calculator className="w-3.5 h-3.5 text-primary" />
-              Precificação Inteligente
+              <span>Precificação & Margem Sugerida</span>
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               <div>
-                <label className="block text-[11px] font-medium text-muted-foreground mb-1">
-                  Custo Unitário (R$) *
+                <label className="block text-[11px] text-muted-foreground mb-1">
+                  Preço Custo (R$) *
                 </label>
                 <Input
                   type="number"
                   step="0.01"
-                  min="0.01"
-                  value={costPrice}
-                  onChange={(e) => setCostPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                  placeholder="0,00"
-                  className="h-9 text-xs bg-white"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-[11px] font-medium text-muted-foreground mb-1">
-                  Margem / Markup (%)
-                </label>
-                <Input
-                  type="number"
-                  step="5"
                   min="0"
-                  value={markupPercent}
-                  onChange={(e) => setMarkupPercent(Number(e.target.value))}
-                  placeholder="50"
-                  className="h-9 text-xs bg-white"
+                  {...register("costPrice", {
+                    valueAsNumber: true,
+                    onChange: (e) => {
+                      const cost = parseFloat(e.target.value) || 0;
+                      if (cost > 0) {
+                        setValue("sellingPrice", Number((cost * (1 + (markupPercent || 50) / 100)).toFixed(2)));
+                      }
+                    },
+                  })}
+                  placeholder="0.00"
+                  className="h-8 text-xs font-semibold"
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-medium text-muted-foreground mb-1">
-                  Preço de Venda (R$) *
+                <label className="block text-[11px] text-muted-foreground mb-1">
+                  Markup (% margem)
+                </label>
+                <div className="flex gap-1">
+                  {[50, 100, 150].map((pct) => (
+                    <button
+                      key={pct}
+                      type="button"
+                      onClick={() => updateMarkup(pct)}
+                      className={`flex-1 h-8 rounded border text-[10px] font-semibold transition-colors ${
+                        markupPercent === pct
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background text-muted-foreground border-input hover:bg-muted"
+                      }`}
+                    >
+                      +{pct}%
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-muted-foreground mb-1">
+                  Preço Venda (R$) *
                 </label>
                 <Input
                   type="number"
                   step="0.01"
-                  min="0.01"
-                  value={sellingPrice}
-                  onChange={(e) => setSellingPrice(e.target.value === "" ? "" : Number(e.target.value))}
-                  placeholder="0,00"
-                  className="h-9 text-xs bg-white font-bold text-primary"
-                  required
+                  min="0"
+                  {...register("sellingPrice", { valueAsNumber: true })}
+                  placeholder="0.00"
+                  className="h-8 text-xs font-bold text-foreground"
                 />
               </div>
             </div>
@@ -249,50 +245,47 @@ export function CreatePartModal({ categories, onClose }: CreatePartModalProps) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1">
-                Estoque Inicial (Físico)
+                Saldo Físico Inicial
               </label>
               <Input
                 type="number"
                 min="0"
-                value={initialStock}
-                onChange={(e) => setInitialStock(Number(e.target.value))}
-                className="h-9 text-xs"
+                {...register("initialStock", { valueAsNumber: true })}
+                className="h-8 text-xs"
               />
             </div>
+
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1">
-                Alerta de Estoque Mínimo
+                Estoque Mínimo de Alerta
               </label>
               <Input
                 type="number"
-                min="0"
-                value={minStockThreshold}
-                onChange={(e) => setMinStockThreshold(Number(e.target.value))}
-                className="h-9 text-xs"
+                min="1"
+                {...register("minStockThreshold", { valueAsNumber: true })}
+                className="h-8 text-xs"
               />
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 pt-2">
+          <div className="flex items-center justify-end gap-2 pt-2 border-t">
             <Button
               type="button"
               variant="outline"
+              size="sm"
               onClick={onClose}
-              className="h-9 text-xs"
+              className="text-xs"
             >
               Cancelar
             </Button>
             <Button
               type="submit"
+              size="sm"
               disabled={createMutation.isPending}
-              className="h-9 text-xs font-semibold gap-1.5"
+              className="text-xs gap-1.5"
             >
-              {createMutation.isPending ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <PackagePlus className="w-3.5 h-3.5" />
-              )}
-              Salvar Peça
+              {createMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{createMutation.isPending ? "Cadastrando..." : "Cadastrar Peça"}</span>
             </Button>
           </div>
         </form>

@@ -1,8 +1,6 @@
-"use client";
-
 import React from "react";
+import Link from "next/link";
 import { Package, ArrowUpRight, ShieldAlert, AlertTriangle, Barcode } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
 import { PartDTO } from "@fluxos/contracts";
 import {
   Table,
@@ -17,12 +15,11 @@ import {
 
 interface InventoryTableProps {
   parts: PartDTO[];
-  isLoading: boolean;
-  onOpenEntry: (part: PartDTO) => void;
-  onOpenScrap: (part: PartDTO) => void;
+  onOpenEntry?: (part: PartDTO) => void;
+  onOpenScrap?: (part: PartDTO) => void;
 }
 
-export function InventoryTable({ parts, isLoading, onOpenEntry, onOpenScrap }: InventoryTableProps) {
+export function InventoryTable({ parts, onOpenEntry, onOpenScrap }: InventoryTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -39,13 +36,7 @@ export function InventoryTable({ parts, isLoading, onOpenEntry, onOpenScrap }: I
         </TableRow>
       </TableHeader>
       <TableBody>
-        {isLoading ? (
-          <TableRow>
-            <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-12">
-              Carregando catálogo de peças...
-            </TableCell>
-          </TableRow>
-        ) : parts.length === 0 ? (
+        {parts.length === 0 ? (
           <TableRow>
             <TableCell colSpan={9} className="text-center text-sm text-muted-foreground py-12">
               Nenhuma peça cadastrada.
@@ -53,7 +44,7 @@ export function InventoryTable({ parts, isLoading, onOpenEntry, onOpenScrap }: I
           </TableRow>
         ) : (
           parts.map((part) => {
-            const isLow = part.stockAvailable <= part.minStockThreshold;
+            const isLow = part.isLowStock ?? (part.stockAvailable <= part.minStockThreshold);
             const categoryName = typeof part.category === "object" ? part.category?.name : part.category;
             const categoryColor = typeof part.category === "object" ? part.category?.color : "#3b82f6";
 
@@ -93,7 +84,7 @@ export function InventoryTable({ parts, isLoading, onOpenEntry, onOpenScrap }: I
                 </TableCell>
 
                 <TableCell className="text-sm py-2.5 text-right tabular-nums text-muted-foreground">
-                  {formatCurrency(part.costPrice)}
+                  {part.displayCostPrice || `R$ ${part.costPrice}`}
                 </TableCell>
 
                 <TableCell className="text-sm py-2.5 text-right tabular-nums text-muted-foreground font-medium">
@@ -101,7 +92,7 @@ export function InventoryTable({ parts, isLoading, onOpenEntry, onOpenScrap }: I
                 </TableCell>
 
                 <TableCell className="text-sm py-2.5 text-right font-bold tabular-nums text-foreground">
-                  {formatCurrency(part.sellingPrice)}
+                  {part.displaySellingPrice || `R$ ${part.sellingPrice}`}
                 </TableCell>
 
                 <TableCell className="text-sm py-2.5 text-center font-bold tabular-nums text-foreground">
@@ -121,24 +112,53 @@ export function InventoryTable({ parts, isLoading, onOpenEntry, onOpenScrap }: I
 
                 <TableCell className="text-sm py-2.5 pr-3 text-right">
                   <div className="inline-flex items-center gap-1">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => onOpenEntry(part)}
-                      title="Registrar Entrada de Lote"
-                      className="h-7 w-7 rounded-md shadow-none"
-                    >
-                      <ArrowUpRight className="w-3.5 h-3.5" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => onOpenScrap(part)}
-                      title="Baixa por Avaria Técnica / Sucata"
-                      className="h-7 w-7 rounded-md shadow-none text-destructive hover:text-destructive"
-                    >
-                      <ShieldAlert className="w-3.5 h-3.5" />
-                    </Button>
+                    {onOpenEntry ? (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => onOpenEntry(part)}
+                        title="Registrar Entrada de Lote"
+                        className="h-7 w-7 rounded-md shadow-none"
+                      >
+                        <ArrowUpRight className="w-3.5 h-3.5" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        asChild
+                        title="Registrar Entrada de Lote"
+                        className="h-7 w-7 rounded-md shadow-none"
+                      >
+                        <Link href={`?modal=stock-entry&partId=${part.id}`}>
+                          <ArrowUpRight className="w-3.5 h-3.5" />
+                        </Link>
+                      </Button>
+                    )}
+
+                    {onOpenScrap ? (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => onOpenScrap(part)}
+                        title="Baixa por Avaria Técnica / Sucata"
+                        className="h-7 w-7 rounded-md shadow-none text-destructive hover:text-destructive"
+                      >
+                        <ShieldAlert className="w-3.5 h-3.5" />
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        asChild
+                        title="Baixa por Avaria Técnica / Sucata"
+                        className="h-7 w-7 rounded-md shadow-none text-destructive hover:text-destructive"
+                      >
+                        <Link href={`?modal=stock-scrap&partId=${part.id}`}>
+                          <ShieldAlert className="w-3.5 h-3.5" />
+                        </Link>
+                      </Button>
+                    )}
                   </div>
                 </TableCell>
               </TableRow>

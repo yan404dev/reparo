@@ -22,11 +22,20 @@ export const CreateDeviceSchema = z.object({
 });
 
 export const CreateServiceOrderSchema = z.object({
-  customerId: z.string().uuid(),
-  deviceId: z.string().uuid(),
+  customerId: z.string().uuid().optional().nullable(),
+  deviceId: z.string().uuid().optional().nullable(),
   technicianId: z.string().uuid().optional().nullable(),
-  reportedDefect: z.string().min(3),
-  entryChecklist: DeviceChecklistSchema
+  reportedDefect: z.string().min(2, "Informe o defeito relatado"),
+  entryChecklist: DeviceChecklistSchema,
+  customerName: z.string().optional().nullable(),
+  customerDocument: z.string().optional().nullable(),
+  customerPhone: z.string().optional().nullable(),
+  customerEmail: z.string().optional().nullable(),
+  deviceBrand: z.string().optional().nullable(),
+  deviceModel: z.string().optional().nullable(),
+  deviceImei: z.string().optional().nullable(),
+  deviceColor: z.string().optional().nullable(),
+  devicePasscode: z.string().optional().nullable(),
 });
 
 export const AddOrderItemSchema = z.object({

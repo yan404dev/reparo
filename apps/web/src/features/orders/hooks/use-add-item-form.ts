@@ -7,6 +7,12 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/api";
 import { AddOrderItemSchema, AddOrderItemInput, OrderItemType, PartDTO } from "@fluxos/contracts";
 
+interface PricingState {
+  laborCost: number;
+  suppliesCost: number;
+  markupPercent: number;
+}
+
 interface UseAddItemFormProps {
   orderId: string;
   compatibleParts: PartDTO[];
@@ -14,13 +20,20 @@ interface UseAddItemFormProps {
   onError: (msg: string) => void;
 }
 
+function computePrice(partCost: number, pricing: PricingState): number {
+  const base = partCost + pricing.laborCost + pricing.suppliesCost;
+  return Number((base * (1 + pricing.markupPercent / 100)).toFixed(2));
+}
+
 export function useAddItemForm({ orderId, compatibleParts, onSuccess, onError }: UseAddItemFormProps) {
   const queryClient = useQueryClient();
   const [selectedPart, setSelectedPart] = useState<PartDTO | null>(null);
   const [showRuptureModal, setShowRuptureModal] = useState(false);
-  const [laborCost, setLaborCost] = useState<number>(0);
-  const [suppliesCost, setSuppliesCost] = useState<number>(0);
-  const [markupPercent, setMarkupPercent] = useState<number>(0);
+  const [pricing, setPricing] = useState<PricingState>({
+    laborCost: 0,
+    suppliesCost: 0,
+    markupPercent: 0,
+  });
 
   const form = useForm<AddOrderItemInput>({
     resolver: zodResolver(AddOrderItemSchema),
@@ -38,32 +51,27 @@ export function useAddItemForm({ orderId, compatibleParts, onSuccess, onError }:
 
   const itemType = form.watch("type");
 
-  const recalculatePrice = (partCost: number, labor: number, supplies: number, markup: number) => {
-    const baseSum = Number(partCost || 0) + Number(labor || 0) + Number(supplies || 0);
-    const multiplier = 1 + Number(markup || 0) / 100;
-    const finalPrice = Number((baseSum * multiplier).toFixed(2));
-    if (finalPrice > 0) {
-      form.setValue("unitPrice", finalPrice);
-    }
+  const recalculatePrice = (partCost: number, updates: Partial<PricingState> = {}) => {
+    const next = { ...pricing, ...updates };
+    setPricing(next);
+    const price = computePrice(partCost, next);
+    if (price > 0) form.setValue("unitPrice", price);
   };
 
   const onPartChange = (partId: string) => {
     form.setValue("partId", partId || null);
-    const found = compatibleParts.find((p) => p.id === partId);
-    setSelectedPart(found || null);
+    const found = compatibleParts.find((p) => p.id === partId) ?? null;
+    setSelectedPart(found);
 
     if (found) {
       form.setValue("description", found.name);
       form.setValue("unitPrice", Number(found.sellingPrice));
       form.setValue("unitCost", Number(found.costPrice));
-
-      if (found.stockAvailable <= 0) {
-        setShowRuptureModal(true);
-      }
+      if (found.stockAvailable <= 0) setShowRuptureModal(true);
     }
   };
 
-  const handleConfirmBackorder = () => {
+  const confirmBackorder = () => {
     if (selectedPart) {
       form.setValue("description", `${selectedPart.name} [Sob Encomenda]`);
     }
@@ -82,13 +90,7 @@ export function useAddItemForm({ orderId, compatibleParts, onSuccess, onError }:
       form.reset();
       onSuccess();
     },
-    onError: (err: any) => {
-      onError(err.message);
-    },
-  });
-
-  const onSubmit = form.handleSubmit((data) => {
-    addItemMutation.mutate(data);
+    onError: (err: Error) => onError(err.message),
   });
 
   return {
@@ -97,16 +99,11 @@ export function useAddItemForm({ orderId, compatibleParts, onSuccess, onError }:
     selectedPart,
     showRuptureModal,
     setShowRuptureModal,
-    handleConfirmBackorder,
-    laborCost,
-    setLaborCost,
-    suppliesCost,
-    setSuppliesCost,
-    markupPercent,
-    setMarkupPercent,
+    confirmBackorder,
+    pricing,
     recalculatePrice,
     onPartChange,
     isSubmitting: addItemMutation.isPending,
-    onSubmit,
+    onSubmit: form.handleSubmit((data) => addItemMutation.mutate(data)),
   };
 }

@@ -35,6 +35,7 @@ export function useLoginForm() {
       const data = await res.json();
       localStorage.setItem("fluxos_token", data.accessToken);
       localStorage.setItem("fluxos_user", JSON.stringify(data.user));
+      document.cookie = `fluxos_token=${data.accessToken}; path=/; max-age=604800; SameSite=Lax`;
 
       router.push("/");
     } catch (err: any) {

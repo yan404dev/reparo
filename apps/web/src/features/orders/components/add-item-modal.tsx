@@ -29,13 +29,8 @@ export function AddItemModal({ orderId, compatibleParts, onClose, onError }: Add
     selectedPart,
     showRuptureModal,
     setShowRuptureModal,
-    handleConfirmBackorder,
-    laborCost,
-    setLaborCost,
-    suppliesCost,
-    setSuppliesCost,
-    markupPercent,
-    setMarkupPercent,
+    confirmBackorder,
+    pricing,
     recalculatePrice,
     onPartChange,
     isSubmitting,
@@ -46,6 +41,8 @@ export function AddItemModal({ orderId, compatibleParts, onClose, onError }: Add
     onSuccess: onClose,
     onError,
   });
+
+  const { laborCost, suppliesCost, markupPercent } = pricing;
 
   const { register, setValue, formState: { errors } } = form;
 
@@ -142,11 +139,11 @@ export function AddItemModal({ orderId, compatibleParts, onClose, onError }: Add
                     min="0"
                     step="0.01"
                     value={laborCost}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setLaborCost(val);
-                      recalculatePrice(Number(selectedPart?.costPrice || 0), val, suppliesCost, markupPercent);
-                    }}
+                    onChange={(e) =>
+                      recalculatePrice(Number(selectedPart?.costPrice ?? 0), {
+                        laborCost: Number(e.target.value),
+                      })
+                    }
                     className="h-8 text-xs bg-white"
                   />
                 </div>
@@ -160,11 +157,11 @@ export function AddItemModal({ orderId, compatibleParts, onClose, onError }: Add
                     min="0"
                     step="0.01"
                     value={suppliesCost}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setSuppliesCost(val);
-                      recalculatePrice(Number(selectedPart?.costPrice || 0), laborCost, val, markupPercent);
-                    }}
+                    onChange={(e) =>
+                      recalculatePrice(Number(selectedPart?.costPrice ?? 0), {
+                        suppliesCost: Number(e.target.value),
+                      })
+                    }
                     className="h-8 text-xs bg-white"
                   />
                 </div>
@@ -178,11 +175,11 @@ export function AddItemModal({ orderId, compatibleParts, onClose, onError }: Add
                     min="0"
                     step="5"
                     value={markupPercent}
-                    onChange={(e) => {
-                      const val = Number(e.target.value);
-                      setMarkupPercent(val);
-                      recalculatePrice(Number(selectedPart?.costPrice || 0), laborCost, suppliesCost, val);
-                    }}
+                    onChange={(e) =>
+                      recalculatePrice(Number(selectedPart?.costPrice ?? 0), {
+                        markupPercent: Number(e.target.value),
+                      })
+                    }
                     className="h-8 text-xs bg-white"
                   />
                 </div>
@@ -255,7 +252,7 @@ export function AddItemModal({ orderId, compatibleParts, onClose, onError }: Add
             <div className="flex flex-col gap-2 pt-2">
               <Button
                 type="button"
-                onClick={handleConfirmBackorder}
+                onClick={confirmBackorder}
                 className="h-9 text-xs font-semibold gap-1.5"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />

@@ -1,5 +1,3 @@
-"use client";
-
 import React from "react";
 import { Smartphone } from "lucide-react";
 import { DeviceDTO } from "@fluxos/contracts";
@@ -15,10 +13,9 @@ import {
 
 interface DevicesTableProps {
   devices: DeviceDTO[];
-  isLoading: boolean;
 }
 
-export function DevicesTable({ devices, isLoading }: DevicesTableProps) {
+export function DevicesTable({ devices }: DevicesTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -32,16 +29,10 @@ export function DevicesTable({ devices, isLoading }: DevicesTableProps) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {isLoading ? (
+        {devices.length === 0 ? (
           <TableRow>
             <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-12">
-              Carregando aparelhos...
-            </TableCell>
-          </TableRow>
-        ) : devices.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-12">
-              Nenhum aparelho cadastrado.
+              Nenhum aparelho encontrado.
             </TableCell>
           </TableRow>
         ) : (

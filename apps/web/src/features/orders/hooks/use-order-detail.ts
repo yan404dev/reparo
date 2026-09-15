@@ -38,23 +38,17 @@ export function useOrderDetail(id: string) {
       queryClient.invalidateQueries({ queryKey: ["dashboard-orders"] });
       queryClient.invalidateQueries({ queryKey: ["inventory-parts"] });
     },
-    onError: (err: any) => {
-      setActionError(err.message);
-    },
+    onError: (err: Error) => setActionError(err.message),
   });
 
   const removeItemMutation = useMutation({
     mutationFn: (itemId: string) =>
-      apiRequest(`/orders/${id}/items/${itemId}`, {
-        method: "DELETE",
-      }),
+      apiRequest(`/orders/${id}/items/${itemId}`, { method: "DELETE" }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["order-detail", id] });
       queryClient.invalidateQueries({ queryKey: ["orders-list"] });
     },
-    onError: (err: any) => {
-      setActionError(err.message);
-    },
+    onError: (err: Error) => setActionError(err.message),
   });
 
   return {
@@ -62,7 +56,8 @@ export function useOrderDetail(id: string) {
     isLoading,
     compatibleParts,
     actionError,
-    setActionError,
+    clearActionError: () => setActionError(null),
+    showError: (msg: string) => setActionError(msg),
     showItemModal,
     setShowItemModal,
     isUpdatingStatus: updateStatusMutation.isPending,

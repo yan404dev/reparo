@@ -2,10 +2,16 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import { PrismaService } from "../../prisma/prisma.service";
 import { AddOrderItemInput, CreateServiceOrderInput } from "@fluxos/contracts";
 import { OrderStatus, OrderItemType, StockMovementType } from "@prisma/client";
+import { PricingCalculatorService } from "./services/pricing-calculator.service";
+import { WhatsAppBuilderService } from "./services/whatsapp-builder.service";
 
 @Injectable()
 export class OrdersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private pricingService: PricingCalculatorService,
+    private whatsappService: WhatsAppBuilderService
+  ) {}
 
   async findAll(status?: OrderStatus, search?: string) {
     const orders = await this.prisma.serviceOrder.findMany({
@@ -121,14 +127,111 @@ export class OrdersService {
 
   async create(data: CreateServiceOrderInput, attendantId: string) {
     return this.prisma.$transaction(async (tx) => {
+      let resolvedCustomerId = data.customerId;
+
+      // Se informou CPF / documento, busca cliente existente para unificar ("quando tiver o mesmo cpf, junta")
+      if (data.customerDocument) {
+        const cleanDoc = data.customerDocument.replace(/\D/g, "");
+        let existingCustomer = await tx.customer.findFirst({
+          where: {
+            OR: [
+              { document: cleanDoc },
+              { document: data.customerDocument },
+              ...(cleanDoc.length === 11
+                ? [
+                    {
+                      document: cleanDoc.replace(
+                        /(\d{3})(\d{3})(\d{3})(\d{2})/,
+                        "$1.$2.$3-$4"
+                      ),
+                    },
+                  ]
+                : []),
+            ],
+          },
+        });
+
+        if (existingCustomer) {
+          // Cliente já existente com esse CPF: junta e atualiza telefone/nome se passados
+          existingCustomer = await tx.customer.update({
+            where: { id: existingCustomer.id },
+            data: {
+              name: data.customerName || existingCustomer.name,
+              phone: data.customerPhone || existingCustomer.phone,
+              email: data.customerEmail !== undefined ? data.customerEmail : existingCustomer.email,
+            },
+          });
+          resolvedCustomerId = existingCustomer.id;
+        } else {
+          // Novo cliente: cadastra automaticamente
+          const newCustomer = await tx.customer.create({
+            data: {
+              name: data.customerName || "Cliente",
+              document: cleanDoc,
+              phone: data.customerPhone || "(00) 00000-0000",
+              email: data.customerEmail || null,
+            },
+          });
+          resolvedCustomerId = newCustomer.id;
+        }
+      } else if (!resolvedCustomerId && data.customerName) {
+        const newCustomer = await tx.customer.create({
+          data: {
+            name: data.customerName,
+            phone: data.customerPhone || "(00) 00000-0000",
+            email: data.customerEmail || null,
+          },
+        });
+        resolvedCustomerId = newCustomer.id;
+      }
+
+      if (!resolvedCustomerId) {
+        throw new BadRequestException("Cliente não informado ou inválido");
+      }
+
+      // Resolução do Aparelho (existente ou novo cadastrado na OS)
+      let resolvedDeviceId = data.deviceId;
+      if (!resolvedDeviceId && (data.deviceBrand || data.deviceModel)) {
+        const cleanImei = data.deviceImei?.trim() || "";
+        let existingDevice = null;
+        if (cleanImei) {
+          existingDevice = await tx.device.findFirst({
+            where: { imei: cleanImei },
+          });
+        }
+
+        if (existingDevice) {
+          resolvedDeviceId = existingDevice.id;
+        } else {
+          const generatedImei =
+            cleanImei ||
+            `SN-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
+          const newDevice = await tx.device.create({
+            data: {
+              customerId: resolvedCustomerId,
+              brand: data.deviceBrand || "Genérico",
+              model: data.deviceModel || "Smartphone",
+              imei: generatedImei,
+              color: data.deviceColor || null,
+              passcode: data.devicePasscode || null,
+            },
+          });
+          resolvedDeviceId = newDevice.id;
+        }
+      }
+
+      if (!resolvedDeviceId) {
+        throw new BadRequestException("Aparelho não informado ou inválido");
+      }
+
       const order = await tx.serviceOrder.create({
         data: {
-          customerId: data.customerId,
-          deviceId: data.deviceId,
+          customerId: resolvedCustomerId,
+          deviceId: resolvedDeviceId,
           technicianId: data.technicianId || undefined,
           attendantId,
           reportedDefect: data.reportedDefect,
-          entryChecklist: data.entryChecklist,
+          entryChecklist: data.entryChecklist as any,
           status: OrderStatus.CRIADA,
         },
         include: {
@@ -145,7 +248,7 @@ export class OrdersService {
           changedById: attendantId,
           fromStatus: OrderStatus.CRIADA,
           toStatus: OrderStatus.CRIADA,
-          reason: "Criação da OS e registro de checklist de entrada",
+          reason: "Entrada do aparelho e checklist inicial registrado",
         },
       });
 
@@ -182,7 +285,7 @@ export class OrdersService {
         }
       }
 
-      const total = Number(unitPrice) * data.quantity - Number(data.discount);
+      const total = this.pricingService.calculateItemTotal(unitPrice, data.quantity, data.discount);
 
       await tx.serviceOrderItem.create({
         data: {
@@ -424,46 +527,95 @@ export class OrdersService {
       where: { serviceOrderId: orderId },
     });
 
-    let totalPartsPrice = 0;
-    let totalLaborPrice = 0;
-    let totalDiscount = 0;
-
-    for (const item of items) {
-      if (item.type === OrderItemType.PECA) {
-        totalPartsPrice += Number(item.unitPrice) * item.quantity;
-      } else {
-        totalLaborPrice += Number(item.unitPrice) * item.quantity;
-      }
-      totalDiscount += Number(item.discount);
-    }
-
-    const grandTotal = totalPartsPrice + totalLaborPrice - totalDiscount;
+    const totals = this.pricingService.calculateOrderTotals(items);
 
     await tx.serviceOrder.update({
       where: { id: orderId },
       data: {
-        totalPartsPrice,
-        totalLaborPrice,
-        totalDiscount,
-        grandTotal,
+        totalPartsPrice: totals.totalPartsPrice,
+        totalLaborPrice: totals.totalLaborPrice,
+        totalDiscount: totals.totalDiscount,
+        grandTotal: totals.grandTotal,
       },
     });
   }
 
-  private formatOrder(order: any) {
+  private static readonly APPROVED_STATUSES: Set<OrderStatus> = new Set([
+    OrderStatus.APROVADA,
+    OrderStatus.EM_REPARO,
+    OrderStatus.TESTES_FINAIS,
+    OrderStatus.PRONTO_RETIRADA,
+    OrderStatus.FINALIZADA,
+  ]);
+
+  private static readonly PENDING_STATUSES: Set<OrderStatus> = new Set([
+    OrderStatus.CRIADA,
+    OrderStatus.AGUARDANDO_APROVACAO,
+  ]);
+
+  private deriveStatusGroup(status: OrderStatus): "pending" | "approved" | "cancelled" {
+    if (OrdersService.PENDING_STATUSES.has(status)) return "pending";
+    if (OrdersService.APPROVED_STATUSES.has(status)) return "approved";
+    return "cancelled";
+  }
+
+  private buildChecklistDisplay(checklist: any): Array<{ label: string; isOk: boolean; displayValue: string }> {
+    if (!checklist) return [];
+    return [
+      { label: "Tela Trincada", isOk: !checklist.screenBroken, displayValue: checklist.screenBroken ? "Com Trincos" : "Íntegra" },
+      { label: "Touch Screen", isOk: !!checklist.touchWorks, displayValue: checklist.touchWorks ? "OK" : "Com Falhas" },
+      { label: "Biometria / Face ID", isOk: !!checklist.faceIdWorking, displayValue: checklist.faceIdWorking ? "OK" : "Inoperante" },
+      { label: "Câmeras", isOk: !!checklist.camerasOk, displayValue: checklist.camerasOk ? "OK" : "Com Falhas" },
+      { label: "Áudio & Microfone", isOk: !!checklist.audioOk, displayValue: checklist.audioOk ? "OK" : "Com Falhas" },
+      { label: "Conector de Carga", isOk: !!checklist.chargePortWorking, displayValue: checklist.chargePortWorking ? "Carrega" : "Com Mau Contato" },
+    ];
+  }
+
+  private formatOrder = (order: any) => {
+    const overdue = order.status === OrderStatus.PRONTO_RETIRADA
+      ? this.pricingService.checkDelayedPickup(order.readyAt, order.updatedAt)
+      : { isLateDelivery: false, hoursLate: 0, daysLate: 0 };
+
+    const grandTotalNum = Number(order.grandTotal || 0);
+    const displayTotalPrice = this.pricingService.formatCurrency(grandTotalNum);
+
+    let profitMarginPercentage = 0;
+    if (order.items && order.items.length > 0) {
+      const calculated = this.pricingService.calculateOrderTotals(order.items);
+      profitMarginPercentage = calculated.profitMarginPercentage;
+    }
+
+    const whatsappUrl = this.whatsappService.resolveOrderWhatsAppUrl(
+      order.status,
+      order.customer?.name || "Cliente",
+      order.customer?.phone || "",
+      order.device?.model || "Aparelho",
+      order.publicToken,
+      displayTotalPrice,
+      overdue.isLateDelivery
+    );
+
     return {
       ...order,
-      totalPartsPrice: Number(order.totalPartsPrice),
-      totalLaborPrice: Number(order.totalLaborPrice),
-      totalDiscount: Number(order.totalDiscount),
-      grandTotal: Number(order.grandTotal),
+      statusGroup: this.deriveStatusGroup(order.status),
+      checklistDisplay: this.buildChecklistDisplay(order.entryChecklist),
+      totalPartsPrice: Number(order.totalPartsPrice || 0),
+      totalLaborPrice: Number(order.totalLaborPrice || 0),
+      totalDiscount: Number(order.totalDiscount || 0),
+      grandTotal: grandTotalNum,
+      displayTotalPrice,
+      profitMarginPercentage,
+      isLateDelivery: overdue.isLateDelivery,
+      hoursLate: overdue.hoursLate,
+      daysLate: overdue.daysLate,
+      whatsappUrl,
       items: order.items?.map((item: any) => ({
         ...item,
-        unitCost: Number(item.unitCost),
-        unitPrice: Number(item.unitPrice),
-        discount: Number(item.discount),
-        total: Number(item.total),
+        unitCost: Number(item.unitCost || 0),
+        unitPrice: Number(item.unitPrice || 0),
+        discount: Number(item.discount || 0),
+        total: Number(item.total || 0),
       })),
     };
-  }
+  };
 }

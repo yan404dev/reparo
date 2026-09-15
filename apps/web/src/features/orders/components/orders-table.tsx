@@ -1,10 +1,6 @@
-"use client";
-
 import React from "react";
 import Link from "next/link";
 import { Smartphone, ChevronRight, MessageCircle, AlertCircle, Share2 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
-import { checkDelayedPickup, getWhatsAppDelayedPickupUrl, getWhatsAppReadyPickupUrl, getWhatsAppQuoteUrl } from "@/lib/whatsapp";
 import { StatusBadge } from "./order-status-badge";
 import { ServiceOrderDTO } from "@fluxos/contracts";
 import {
@@ -15,15 +11,13 @@ import {
   TableHead,
   TableCell,
   Badge,
-  Button,
 } from "@/components/ui";
 
 interface OrdersTableProps {
   orders: ServiceOrderDTO[];
-  isLoading: boolean;
 }
 
-export function OrdersTable({ orders, isLoading }: OrdersTableProps) {
+export function OrdersTable({ orders }: OrdersTableProps) {
   return (
     <Table>
       <TableHeader>
@@ -38,23 +32,16 @@ export function OrdersTable({ orders, isLoading }: OrdersTableProps) {
         </TableRow>
       </TableHeader>
       <TableBody>
-        {isLoading ? (
-          <TableRow>
-            <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-12">
-              Carregando ordens de serviço...
-            </TableCell>
-          </TableRow>
-        ) : orders.length === 0 ? (
+        {orders.length === 0 ? (
           <TableRow>
             <TableCell colSpan={7} className="text-center text-sm text-muted-foreground py-12">
               Nenhuma ordem de serviço encontrada.
             </TableCell>
           </TableRow>
         ) : (
-          orders.map((order: any) => {
+          orders.map((order) => {
             const isReady = order.status === "PRONTO_RETIRADA";
             const isPendingApproval = order.status === "AGUARDANDO_APROVACAO" || order.status === "CRIADA";
-            const overdue = isReady ? checkDelayedPickup(order.readyAt, order.updatedAt) : null;
 
             return (
               <TableRow key={order.id}>
@@ -84,60 +71,45 @@ export function OrdersTable({ orders, isLoading }: OrdersTableProps) {
                 <TableCell className="text-sm py-2.5">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <StatusBadge status={order.status} />
-                    {overdue?.isOverdue && (
+                    {order.isLateDelivery && (
                       <Badge variant="destructive" className="text-[10px] h-5 px-1.5 gap-1 font-bold animate-pulse">
                         <AlertCircle className="w-3 h-3" />
-                        Atrasado (+{overdue.daysElapsed > 0 ? `${overdue.daysElapsed}d` : `${overdue.hoursElapsed}h`})
+                        Atrasado (+{order.daysLate > 0 ? `${order.daysLate}d` : `${order.hoursLate}h`})
                       </Badge>
                     )}
                   </div>
                 </TableCell>
                 <TableCell className="text-sm py-2.5 text-right font-bold tabular-nums">
-                  {formatCurrency(order.grandTotal)}
+                  {order.displayTotalPrice}
                 </TableCell>
                 <TableCell className="text-sm py-2.5 pr-3 text-right">
                   <div className="inline-flex items-center justify-end gap-1.5">
-                    {order.customer?.phone && (
-                      <>
-                        {isReady && overdue?.isOverdue && (
-                          <a
-                            href={getWhatsAppDelayedPickupUrl(order.customer.name, order.customer.phone, order.device?.model || "aparelho")}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-[11px] font-semibold bg-amber-500 text-white hover:bg-amber-600 transition-colors"
-                            title="Cobrar Retirada no WhatsApp"
-                          >
-                            <MessageCircle className="w-3 h-3" />
-                            Lembrar Cliente
-                          </a>
-                        )}
-
-                        {isReady && !overdue?.isOverdue && (
-                          <a
-                            href={getWhatsAppReadyPickupUrl(order.customer.name, order.customer.phone, order.device?.model || "aparelho", order.grandTotal)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-[11px] font-semibold bg-emerald-600 text-white hover:bg-emerald-700 transition-colors"
-                            title="Avisar que está pronto"
-                          >
-                            <MessageCircle className="w-3 h-3" />
-                            Avisar Retirada
-                          </a>
-                        )}
-
-                        {isPendingApproval && order.publicToken && (
-                          <a
-                            href={getWhatsAppQuoteUrl(order.customer.name, order.customer.phone, order.device?.model || "aparelho", order.publicToken)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 h-7 px-2 rounded-md text-[11px] font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                            title="Enviar Link de Orçamento no WhatsApp"
-                          >
+                    {order.whatsappUrl && (
+                      <a
+                        href={order.whatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center gap-1 h-7 px-2 rounded-md text-[11px] font-semibold text-white transition-colors ${
+                          order.isLateDelivery
+                            ? "bg-amber-500 hover:bg-amber-600"
+                            : isReady
+                            ? "bg-emerald-600 hover:bg-emerald-700"
+                            : "bg-primary text-primary-foreground hover:bg-primary/90"
+                        }`}
+                        title="Ação rápida no WhatsApp"
+                      >
+                        {isPendingApproval ? (
+                          <>
                             <Share2 className="w-3 h-3" />
-                            Enviar Link
-                          </a>
+                            <span>Enviar Link</span>
+                          </>
+                        ) : (
+                          <>
+                            <MessageCircle className="w-3 h-3" />
+                            <span>{order.isLateDelivery ? "Lembrar Cliente" : "Avisar Retirada"}</span>
+                          </>
                         )}
-                      </>
+                      </a>
                     )}
 
                     <Link

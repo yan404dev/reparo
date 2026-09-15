@@ -10,14 +10,45 @@ export interface UserDTO {
   createdAt: string;
 }
 
+export interface CustomerTimelineEventDTO {
+  id: string;
+  type: "ORDER_CREATED" | "STATUS_CHANGE" | "ITEM_APPLIED";
+  timestamp: number;
+  date: string;
+  orderId: string;
+  orderNumber: number;
+  title: string;
+  subtitle: string;
+  description?: string;
+  status?: string;
+  total?: number;
+  author: string;
+  iconType: "smartphone" | "wrench" | "clock" | "check" | "alert";
+  badgeColor: string;
+}
+
 export interface CustomerDTO {
   id: string;
   name: string;
   document?: string | null;
+  displayDocument?: string | null;
   email?: string | null;
   phone: string;
   notes?: string | null;
   createdAt: string;
+  updatedAt?: string;
+  devices?: DeviceDTO[];
+  orders?: any[];
+  totalSpent?: number;
+  displayTotalSpent?: string;
+  activeOrdersCount?: number;
+  isRecurrent?: boolean;
+  hasActiveOrders?: boolean;
+  whatsappUrl?: string | null;
+  timelineEvents?: CustomerTimelineEventDTO[];
+  _count?: {
+    orders: number;
+  };
 }
 
 export interface DeviceDTO {
@@ -59,6 +90,12 @@ export interface ServiceOrderItemDTO {
   part?: PartDTO | null;
 }
 
+export interface ChecklistDisplayItem {
+  label: string;
+  isOk: boolean;
+  displayValue: string;
+}
+
 export interface ServiceOrderDTO {
   id: string;
   orderNumber: number;
@@ -72,7 +109,9 @@ export interface ServiceOrderDTO {
   attendantId: string;
   attendant?: UserDTO;
   status: OrderStatus;
+  statusGroup: "pending" | "approved" | "cancelled";
   entryChecklist: DeviceChecklist;
+  checklistDisplay: ChecklistDisplayItem[];
   reportedDefect: string;
   technicalReport?: string | null;
   finalObservations?: string | null;
@@ -80,6 +119,12 @@ export interface ServiceOrderDTO {
   totalLaborPrice: number;
   totalDiscount: number;
   grandTotal: number;
+  displayTotalPrice: string;
+  profitMarginPercentage?: number;
+  isLateDelivery: boolean;
+  daysLate: number;
+  hoursLate: number;
+  whatsappUrl?: string | null;
   readyAt?: string | null;
   approvedAt?: string | null;
   startedAt?: string | null;
@@ -103,10 +148,13 @@ export interface PartDTO {
   costPrice: number;
   suggestedMarkupPercent: number;
   sellingPrice: number;
+  displayCostPrice?: string;
+  displaySellingPrice?: string;
   stockPhysical: number;
   stockReserved: number;
   stockAvailable: number;
   minStockThreshold: number;
+  isLowStock?: boolean;
 }
 
 export interface StockMovementDTO {
@@ -122,4 +170,14 @@ export interface StockMovementDTO {
   newReserved: number;
   reason?: string | null;
   createdAt: string;
+}
+
+export interface DashboardMetricsDTO {
+  activeOrdersCount: number;
+  readyOrdersCount: number;
+  lowStockPartsCount: number;
+  totalRevenue: number;
+  displayTotalRevenue: string;
+  recentOrders: ServiceOrderDTO[];
+  lowStockParts: PartDTO[];
 }

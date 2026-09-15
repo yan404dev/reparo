@@ -1,13 +1,31 @@
-"use client";
-
 import React from "react";
-import { Search } from "lucide-react";
-import { Input, Card, CardContent } from "@/components/ui";
-import { useDevices } from "@/features/devices/hooks/use-devices";
+import { DeviceDTO } from "@fluxos/contracts";
+import { serverApiFetch } from "@/lib/server-api";
+import { Card, CardContent } from "@/components/ui";
 import { DevicesTable } from "@/features/devices/components/devices-table";
+import { DevicesSearchInput } from "@/features/devices/components/devices-search-input";
 
-export default function DevicesPage() {
-  const { devices, isLoading, search, setSearch } = useDevices();
+interface DevicesPageProps {
+  searchParams: Promise<{
+    search?: string;
+  }>;
+}
+
+export default async function DevicesPage({ searchParams }: DevicesPageProps) {
+  const { search } = await searchParams;
+
+  const queryParams = new URLSearchParams();
+  if (search) queryParams.set("search", search);
+
+  const queryString = queryParams.toString();
+  const endpoint = queryString ? `/devices?${queryString}` : "/devices";
+
+  let devices: DeviceDTO[] = [];
+  try {
+    devices = await serverApiFetch<DeviceDTO[]>(endpoint);
+  } catch {
+    devices = [];
+  }
 
   return (
     <div className="space-y-6">
@@ -23,21 +41,12 @@ export default function DevicesPage() {
       </div>
 
       <div className="flex flex-col md:flex-row items-center justify-between gap-3">
-        <div className="relative w-full md:w-72">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-          <Input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Buscar por IMEI, modelo ou marca..."
-            className="h-9 pl-8 pr-3 text-sm w-full"
-          />
-        </div>
+        <DevicesSearchInput defaultValue={search} />
       </div>
 
       <Card className="shadow-none">
         <CardContent className="p-4 md:p-5">
-          <DevicesTable devices={devices} isLoading={isLoading} />
+          <DevicesTable devices={devices} />
         </CardContent>
       </Card>
     </div>

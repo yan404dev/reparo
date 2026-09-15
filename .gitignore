@@ -5,6 +5,7 @@ dist
 out
 .turbo
 *.log
+*.tsbuildinfo
 .env
 .env.local
 .env.*.local

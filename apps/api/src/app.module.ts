@@ -9,6 +9,7 @@ import { DevicesModule } from "./modules/devices/devices.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { InventoryModule } from "./modules/inventory/inventory.module";
 import { OrdersModule } from "./modules/orders/orders.module";
+import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 
 @Module({
@@ -22,6 +23,7 @@ import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
     CategoriesModule,
     InventoryModule,
     OrdersModule,
+    DashboardModule,
   ],
   providers: [
     {

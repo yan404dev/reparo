@@ -14,6 +14,11 @@ export class CustomersController {
     return this.customersService.findAll(search);
   }
 
+  @Get("by-document/:document")
+  async findByDocument(@Param("document") document: string) {
+    return this.customersService.findByDocument(document);
+  }
+
   @Get(":id")
   async findById(@Param("id") id: string) {
     return this.customersService.findById(id);
