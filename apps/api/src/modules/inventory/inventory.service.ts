@@ -53,9 +53,19 @@ export class InventoryService {
   }
 
   async findCompatible(deviceModel: string) {
+    const cleanModel = deviceModel?.trim() || "";
+    if (!cleanModel) {
+      const parts = await this.prisma.part.findMany({
+        include: { category: true },
+        take: 30,
+        orderBy: { name: "asc" },
+      });
+      return parts.map(this.formatPart);
+    }
+
     const compatibilities = await this.prisma.partCompatibility.findMany({
       where: {
-        deviceModel: { contains: deviceModel, mode: "insensitive" },
+        deviceModel: { contains: cleanModel, mode: "insensitive" },
       },
       include: {
         part: {
@@ -66,10 +76,26 @@ export class InventoryService {
       },
     });
 
-    return compatibilities.map((c) => ({
-      ...this.formatPart(c.part),
-      compatibilityNotes: c.notes,
-    }));
+    const directPartIds = compatibilities.map((c) => c.part.id);
+
+    const nameMatchingParts = await this.prisma.part.findMany({
+      where: {
+        id: { notIn: directPartIds },
+        name: { contains: cleanModel, mode: "insensitive" },
+      },
+      include: {
+        category: true
+      },
+      take: 30,
+    });
+
+    return [
+      ...compatibilities.map((c) => ({
+        ...this.formatPart(c.part),
+        compatibilityNotes: c.notes,
+      })),
+      ...nameMatchingParts.map((p) => this.formatPart(p)),
+    ];
   }
 
   async findById(id: string) {

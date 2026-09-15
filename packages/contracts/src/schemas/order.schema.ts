@@ -36,6 +36,14 @@ export const CreateServiceOrderSchema = z.object({
   deviceImei: z.string().optional().nullable(),
   deviceColor: z.string().optional().nullable(),
   devicePasscode: z.string().optional().nullable(),
+  initialQuote: z.object({
+    partId: z.string().uuid().optional().nullable(),
+    partDescription: z.string().optional().nullable(),
+    partPrice: z.number().min(0).optional().nullable(),
+    laborPrice: z.number().min(0).optional().nullable(),
+    discount: z.number().min(0).default(0).optional().nullable(),
+    warrantyDays: z.number().int().min(0).default(90).optional().nullable(),
+  }).optional().nullable(),
 });
 
 export const AddOrderItemSchema = z.object({

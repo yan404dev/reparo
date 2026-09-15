@@ -9,6 +9,7 @@ import { OrderNewCustomerSection } from "@/features/orders/components/order-new-
 import { OrderNewDeviceSection } from "@/features/orders/components/order-new-device-section";
 import { OrderNewDefectSection } from "@/features/orders/components/order-new-defect-section";
 import { OrderNewChecklistSection } from "@/features/orders/components/order-new-checklist-section";
+import { OrderNewQuoteSection } from "@/features/orders/components/order-new-quote-section";
 
 function NewOrderFormContent() {
   const {
@@ -23,6 +24,11 @@ function NewOrderFormContent() {
     submitError,
     onSubmit,
   } = useCreateOrderForm();
+
+  const selectedDeviceId = form.watch("deviceId");
+  const typedModel = form.watch("deviceModel");
+  const existingDevice = existingCustomer?.devices?.find((d: any) => d.id === selectedDeviceId);
+  const currentModel = deviceMode === "EXISTING" ? existingDevice?.model : typedModel;
 
   return (
     <div className="space-y-6 pb-16">
@@ -71,6 +77,11 @@ function NewOrderFormContent() {
 
             <OrderNewChecklistSection
               form={form}
+            />
+
+            <OrderNewQuoteSection
+              form={form}
+              currentModel={currentModel}
             />
 
             <div className="flex items-center justify-end gap-3 pt-5 border-t border-border">

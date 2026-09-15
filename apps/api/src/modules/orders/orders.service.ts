@@ -252,7 +252,87 @@ export class OrdersService {
         },
       });
 
-      return this.formatOrder(order);
+      if (data.initialQuote) {
+        const { partId, partDescription, partPrice, laborPrice, discount, warrantyDays } = data.initialQuote;
+        let hasItems = false;
+
+        if (partPrice && partPrice > 0) {
+          let unitCost = 0;
+          let description = partDescription?.trim() || "Peça de reposição";
+
+          if (partId) {
+            const part = await tx.part.findUnique({ where: { id: partId } });
+            if (part) {
+              unitCost = Number(part.costPrice);
+              if (!partDescription) description = part.name;
+            }
+          }
+
+          await tx.serviceOrderItem.create({
+            data: {
+              serviceOrderId: order.id,
+              type: OrderItemType.PECA,
+              partId: partId || undefined,
+              description,
+              quantity: 1,
+              unitCost,
+              unitPrice: partPrice,
+              discount: discount || 0,
+              total: partPrice - (discount || 0),
+              warrantyDays: warrantyDays ?? 90,
+            },
+          });
+          hasItems = true;
+        }
+
+        if (laborPrice && laborPrice > 0) {
+          await tx.serviceOrderItem.create({
+            data: {
+              serviceOrderId: order.id,
+              type: OrderItemType.SERVICO_MAO_DE_OBRA,
+              description: "Mão de obra técnica especializada",
+              quantity: 1,
+              unitCost: 0,
+              unitPrice: laborPrice,
+              discount: 0,
+              total: laborPrice,
+              warrantyDays: warrantyDays ?? 90,
+            },
+          });
+          hasItems = true;
+        }
+
+        if (hasItems) {
+          await this.recalculateTotals(tx, order.id);
+          await tx.serviceOrder.update({
+            where: { id: order.id },
+            data: { status: OrderStatus.AGUARDANDO_APROVACAO },
+          });
+          await tx.orderStatusHistory.create({
+            data: {
+              serviceOrderId: order.id,
+              changedById: attendantId,
+              fromStatus: OrderStatus.CRIADA,
+              toStatus: OrderStatus.AGUARDANDO_APROVACAO,
+              reason: "Orçamento inicial preenchido no balcão e aguardando aprovação do cliente",
+            },
+          });
+        }
+      }
+
+      const freshOrder = await tx.serviceOrder.findUnique({
+        where: { id: order.id },
+        include: {
+          customer: true,
+          device: true,
+          technician: true,
+          attendant: true,
+          items: { include: { part: true } },
+          history: { orderBy: { createdAt: "desc" } },
+        },
+      });
+
+      return this.formatOrder(freshOrder || order);
     });
   }
 

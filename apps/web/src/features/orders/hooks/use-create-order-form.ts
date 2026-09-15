@@ -69,6 +69,11 @@ const DEFAULT_CHECKLIST: CreateServiceOrderInput["entryChecklist"] = {
 
 function buildOrderPayload(data: CreateServiceOrderInput, deviceMode: DeviceMode): CreateServiceOrderInput {
   const isNew = deviceMode === "NEW";
+  const hasQuote =
+    data.initialQuote &&
+    ((data.initialQuote.partPrice && data.initialQuote.partPrice > 0) ||
+     (data.initialQuote.laborPrice && data.initialQuote.laborPrice > 0));
+
   return {
     ...data,
     deviceId: isNew ? null : data.deviceId,
@@ -77,6 +82,7 @@ function buildOrderPayload(data: CreateServiceOrderInput, deviceMode: DeviceMode
     deviceImei: isNew ? data.deviceImei : null,
     deviceColor: isNew ? data.deviceColor : null,
     devicePasscode: isNew ? data.devicePasscode : null,
+    initialQuote: hasQuote ? data.initialQuote : null,
   };
 }
 
@@ -128,6 +134,14 @@ export function useCreateOrderForm() {
       deviceColor: "",
       devicePasscode: "",
       entryChecklist: DEFAULT_CHECKLIST,
+      initialQuote: {
+        partId: null,
+        partDescription: "",
+        partPrice: null,
+        laborPrice: null,
+        discount: 0,
+        warrantyDays: 90,
+      },
     },
   });
 
