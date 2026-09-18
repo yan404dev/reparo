@@ -1,105 +1,129 @@
 "use client";
 
 import React from "react";
-import { Lock, Mail, ArrowRight, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { Mail, Lock, ArrowRight, AlertCircle, Loader2 } from "lucide-react";
 import { useLoginForm } from "../hooks/use-login-form";
 
 export function LoginForm() {
-  const { form, error, isLoading, onSubmit, setFastCredentials } = useLoginForm();
-  const { register, formState: { errors } } = form;
+  const { form, error, isLoading, onSubmit } = useLoginForm();
+  const {
+    register,
+    formState: { errors },
+  } = form;
 
   return (
-    <div className="w-full max-w-[400px]">
-      <div className="text-center mb-8">
-        <div className="inline-flex items-center justify-center w-11 h-11 rounded-2xl bg-neutral-900 text-white font-bold text-lg shadow-sm mb-3">
-          R
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight text-neutral-900">Reparô</h1>
-        <p className="text-xs text-neutral-500 mt-1">Gestão inteligente de assistência e estoque de smartphones</p>
+    <div className="w-full">
+      {/* Cabeçalho Minimalista */}
+      <div className="mb-8">
+        <h1
+          className="text-2xl font-bold tracking-tight text-[#1c2b33] sm:text-3xl"
+          style={{ fontFamily: "var(--font-optimistic), var(--font-sans), sans-serif" }}
+        >
+          Entrar no Reparô
+        </h1>
+        <p className="mt-2 text-sm text-[#606770]">
+          Acesse sua bancada técnica, ordens de serviço e estoque.
+        </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-neutral-200/80 p-7 shadow-[0_1px_3px_0_rgba(0,0,0,0.04),0_1px_2px_0_rgba(0,0,0,0.02)]">
-        {error && (
-          <div className="mb-5 p-3 rounded-xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs font-medium">
-            {error}
-          </div>
-        )}
+      {/* Alerta de Erro */}
+      {error && (
+        <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-rose-200 bg-rose-50/80 p-3.5 text-xs font-medium text-rose-700">
+          <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+          <span>{error}</span>
+        </div>
+      )}
 
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div>
-            <label className="block text-[11px] font-semibold text-neutral-600 uppercase tracking-wider mb-1.5">
-              E-mail
-            </label>
-            <div className="relative">
-              <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="email"
-                {...register("email")}
-                placeholder="nome@empresa.com"
-                className="w-full bg-neutral-50/60 border border-neutral-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all"
-              />
-            </div>
-            {errors.email && (
-              <span className="text-[11px] text-rose-600 mt-1 block">{errors.email.message}</span>
-            )}
+      {/* Formulário */}
+      <form onSubmit={onSubmit} className="space-y-4">
+        {/* E-mail */}
+        <div>
+          <label
+            htmlFor="email"
+            className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#465A69]"
+          >
+            E-mail profissional
+          </label>
+          <div className="relative">
+            <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8D949E]" />
+            <input
+              id="email"
+              type="email"
+              {...register("email")}
+              placeholder="seu.email@assistencia.com"
+              className="w-full rounded-xl border border-[#DEE3E9] bg-white py-3 pl-10 pr-4 text-sm text-[#1c2b33] placeholder:text-[#8D9CA7] transition-all focus:border-[#1c2b33] focus:outline-none focus:ring-2 focus:ring-[#1c2b33]/10"
+            />
           </div>
+          {errors.email && (
+            <span className="mt-1 block text-xs text-rose-600">
+              {errors.email.message}
+            </span>
+          )}
+        </div>
 
-          <div>
-            <label className="block text-[11px] font-semibold text-neutral-600 uppercase tracking-wider mb-1.5">
+        {/* Senha */}
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            <label
+              htmlFor="password"
+              className="block text-xs font-semibold uppercase tracking-wider text-[#465A69]"
+            >
               Senha
             </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="password"
-                {...register("password")}
-                placeholder="••••••••"
-                className="w-full bg-neutral-50/60 border border-neutral-200 rounded-xl pl-10 pr-3.5 py-2.5 text-xs text-neutral-900 placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900/10 focus:border-neutral-900 transition-all"
-              />
-            </div>
-            {errors.password && (
-              <span className="text-[11px] text-rose-600 mt-1 block">{errors.password.message}</span>
-            )}
+            <Link
+              href="#recuperar"
+              className="text-xs font-medium text-[#606770] hover:text-[#1c2b33] transition-colors"
+            >
+              Esqueci minha senha
+            </Link>
           </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full mt-2 bg-neutral-900 hover:bg-neutral-800 active:scale-[0.99] text-white font-medium py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-xs transition-all disabled:opacity-50"
-          >
-            <span>{isLoading ? "Validando..." : "Entrar na plataforma"}</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </form>
-
-        <div className="mt-6 pt-5 border-t border-neutral-100">
-          <p className="text-[10px] font-semibold text-neutral-400 uppercase tracking-wider mb-2 text-center">
-            Acesso Rápido de Demonstração
-          </p>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              type="button"
-              onClick={() => setFastCredentials("admin@fluxos.com", "admin123")}
-              className="py-1.5 px-2 text-[11px] border border-neutral-200 rounded-lg hover:bg-neutral-50 text-neutral-700 font-medium transition-colors"
-            >
-              Admin
-            </button>
-            <button
-              type="button"
-              onClick={() => setFastCredentials("carlos@fluxos.com", "admin123")}
-              className="py-1.5 px-2 text-[11px] border border-neutral-200 rounded-lg hover:bg-neutral-50 text-neutral-700 font-medium transition-colors"
-            >
-              Técnico
-            </button>
-            <button
-              type="button"
-              onClick={() => setFastCredentials("marina@fluxos.com", "admin123")}
-              className="py-1.5 px-2 text-[11px] border border-neutral-200 rounded-lg hover:bg-neutral-50 text-neutral-700 font-medium transition-colors"
-            >
-              Atendente
-            </button>
+          <div className="relative">
+            <Lock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8D949E]" />
+            <input
+              id="password"
+              type="password"
+              {...register("password")}
+              placeholder="••••••••"
+              className="w-full rounded-xl border border-[#DEE3E9] bg-white py-3 pl-10 pr-4 text-sm text-[#1c2b33] placeholder:text-[#8D9CA7] transition-all focus:border-[#1c2b33] focus:outline-none focus:ring-2 focus:ring-[#1c2b33]/10"
+            />
           </div>
+          {errors.password && (
+            <span className="mt-1 block text-xs text-rose-600">
+              {errors.password.message}
+            </span>
+          )}
         </div>
+
+        {/* Botão TurmaPay Style */}
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-neutral-900 px-6 text-sm font-semibold text-white shadow-sm transition-all hover:bg-black active:scale-[0.99] disabled:pointer-events-none disabled:opacity-60 cursor-pointer"
+        >
+          {isLoading ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Acessando bancada...</span>
+            </>
+          ) : (
+            <>
+              <span>Entrar</span>
+              <ArrowRight className="h-4 w-4" />
+            </>
+          )}
+        </button>
+      </form>
+
+      {/* Alternância Unificada no Rodapé - Colada no Botão */}
+      <div className="mt-3.5 text-center text-xs text-[#606770]">
+        <span>Não tem uma conta? </span>
+        <Link
+          href="/auth?mode=register"
+          className="font-semibold text-[#1c2b33] hover:underline"
+        >
+          Criar oficina
+        </Link>
       </div>
     </div>
   );

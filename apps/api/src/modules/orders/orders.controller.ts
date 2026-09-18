@@ -5,7 +5,7 @@ import { RolesGuard } from "../../common/guards/roles.guard";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { Public } from "../../common/decorators/public.decorator";
-import { AddOrderItemInput, ApprovePublicOrderInput, CreateServiceOrderInput, RejectPublicOrderInput, UpdateOrderStatusInput, UserRole } from "@fluxos/contracts";
+import { AddOrderItemInput, ApprovePublicOrderInput, CreateServiceOrderInput, PublicCustomerIntakeInput, RejectPublicOrderInput, UpdateOrderStatusInput, UserRole } from "@fluxos/contracts";
 import { OrderStatus } from "@prisma/client";
 
 @ApiTags("Ordens de Serviço")
@@ -39,10 +39,22 @@ export class OrdersController {
     return this.ordersService.rejectByPublicToken(token, dto?.rejectionReason);
   }
 
-  @Get()
-  async findAll(@Query("status") status?: OrderStatus, @Query("search") search?: string) {
-    return this.ordersService.findAll(status, search);
+  @Public()
+  @Post("public/intake")
+  async createPublicIntake(@Body() dto: PublicCustomerIntakeInput) {
+    return this.ordersService.createPublicIntake(dto);
   }
+
+  @Get()
+  async findAll(
+    @Query("status") status?: OrderStatus,
+    @Query("search") search?: string,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number
+  ) {
+    return this.ordersService.findAll(status, search, page, limit);
+  }
+
 
   @Get(":id")
   async findById(@Param("id") id: string) {

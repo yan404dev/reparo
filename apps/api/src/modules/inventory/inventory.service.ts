@@ -2,6 +2,7 @@ import { CreateCompatibilityInput, CreatePartInput, StockEntryInput, StockScrapI
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { StockMovementType } from "@prisma/client";
 import { PrismaService } from "../../prisma/prisma.service";
+import { buildPaginatedResponse } from "../../common/utils/pagination.util";
 
 @Injectable()
 export class InventoryService {
@@ -23,34 +24,47 @@ export class InventoryService {
     };
   };
 
-  async findAll(categoryId?: string, search?: string) {
-    const parts = await this.prisma.part.findMany({
-      where: {
-        OR: search
-          && [
-              { name: { contains: search, mode: "insensitive" } },
-              { sku: { contains: search, mode: "insensitive" } },
-              { barcode: { contains: search, mode: "insensitive" } },
-              { brand: { contains: search, mode: "insensitive" } },
-            ],
-        ...(categoryId
-         && {
-              OR: [
-                { categoryId },
-                { category: { slug: categoryId } }
-              ]
-            }
-          )
-      },
-      include: {
-        category: true,
-        compatibilities: true,
-      },
-      orderBy: { name: "asc" },
-    });
+  async findAll(categoryId?: string, search?: string, page?: number, limit?: number) {
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.max(1, Number(limit) || 10);
+    const skip = (safePage - 1) * safeLimit;
 
-    return parts.map(this.formatPart);
+    const where = {
+      OR: search
+        && [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { sku: { contains: search, mode: "insensitive" as const } },
+            { barcode: { contains: search, mode: "insensitive" as const } },
+            { brand: { contains: search, mode: "insensitive" as const } },
+          ],
+      ...(categoryId
+       && {
+            OR: [
+              { categoryId },
+              { category: { slug: categoryId } }
+            ]
+          }
+        )
+    };
+
+    const [total, parts] = await Promise.all([
+      this.prisma.part.count({ where }),
+      this.prisma.part.findMany({
+        where,
+        include: {
+          category: true,
+          compatibilities: true,
+        },
+        orderBy: { name: "asc" },
+        skip,
+        take: safeLimit,
+      }),
+    ]);
+
+    const formatted = parts.map(this.formatPart);
+    return buildPaginatedResponse(formatted, total, safePage, safeLimit);
   }
+
 
   async findCompatible(deviceModel: string) {
     const cleanModel = deviceModel?.trim() || "";
@@ -347,16 +361,28 @@ export class InventoryService {
     });
   }
 
-  async getMovements(partId?: string) {
-    return this.prisma.stockMovement.findMany({
-      where: partId ? { partId } : undefined,
-      include: {
-        part: { select: { id: true, name: true, sku: true } },
-        user: { select: { id: true, name: true, email: true } },
-        serviceOrder: { select: { id: true, orderNumber: true } },
-      },
-      orderBy: { createdAt: "desc" },
-      take: 100,
-    });
+  async getMovements(partId?: string, page?: number, limit?: number) {
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.max(1, Number(limit) || 10);
+    const skip = (safePage - 1) * safeLimit;
+    const where = partId ? { partId } : undefined;
+
+    const [total, movements] = await Promise.all([
+      this.prisma.stockMovement.count({ where }),
+      this.prisma.stockMovement.findMany({
+        where,
+        include: {
+          part: { select: { id: true, name: true, sku: true } },
+          user: { select: { id: true, name: true, email: true } },
+          serviceOrder: { select: { id: true, orderNumber: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: safeLimit,
+      }),
+    ]);
+
+    return buildPaginatedResponse(movements, total, safePage, safeLimit);
   }
 }
+

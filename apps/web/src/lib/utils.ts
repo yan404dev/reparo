@@ -5,4 +5,6 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export { formatCurrency, formatDate, formatShortDate, formatCpfMask, formatPhoneMask, formatDocument } from "@fluxos/contracts";
+export { formatCpfMask, formatCurrency, formatDate, formatDocument, formatPhoneMask, formatShortDate } from "@fluxos/contracts";
+
+

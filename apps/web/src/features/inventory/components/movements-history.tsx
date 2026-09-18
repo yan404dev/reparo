@@ -13,17 +13,24 @@ import {
   TableHead,
   TableCell,
   Badge,
+  TablePaginationFooter,
 } from "@/components/ui";
+
 
 interface MovementsHistoryProps {
   movements: StockMovementDTO[];
   isLoading: boolean;
+  meta?: {
+    page: number;
+    totalPages: number;
+    totalItems: number;
+  };
 }
 
-export function MovementsHistory({ movements, isLoading }: MovementsHistoryProps) {
+export function MovementsHistory({ movements, isLoading, meta }: MovementsHistoryProps) {
   return (
     <Card className="shadow-none">
-      <CardContent className="p-4 md:p-5 space-y-4">
+      <CardContent className="p-4 md:p-5 pb-0 space-y-4">
         <div>
           <h2 className="text-base font-semibold tracking-tight">Histórico de Movimentações Atômicas</h2>
           <p className="text-xs text-muted-foreground mt-0.5">Auditoria cronológica de entradas, reservas, baixas e sucatas</p>
@@ -54,7 +61,7 @@ export function MovementsHistory({ movements, isLoading }: MovementsHistoryProps
                 </TableCell>
               </TableRow>
             ) : (
-              movements.slice(0, 10).map((m: any) => (
+              movements.map((m: any) => (
                 <TableRow key={m.id}>
                   <TableCell className="text-sm py-2.5 text-muted-foreground">{formatDate(m.createdAt)}</TableCell>
                   <TableCell className="text-sm py-2.5 font-semibold text-foreground">{m.part?.name}</TableCell>
@@ -78,6 +85,14 @@ export function MovementsHistory({ movements, isLoading }: MovementsHistoryProps
           </TableBody>
         </Table>
       </CardContent>
+      {meta && (
+        <TablePaginationFooter
+          page={meta.page}
+          totalPages={meta.totalPages}
+          totalItems={meta.totalItems}
+        />
+      )}
     </Card>
   );
 }
+

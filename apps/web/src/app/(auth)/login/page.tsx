@@ -1,10 +1,5 @@
-import React from "react";
-import { LoginForm } from "@/features/auth/components/login-form";
+import { redirect } from "next/navigation";
 
 export default function LoginPage() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-[#F9FAFB] px-4">
-      <LoginForm />
-    </div>
-  );
+  redirect("/auth?mode=login");
 }

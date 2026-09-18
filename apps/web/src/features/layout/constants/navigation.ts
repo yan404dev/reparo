@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 export const NAV_ITEMS = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/orders", label: "Ordens de Serviço", icon: Wrench },
   { href: "/inventory", label: "Estoque & Peças", icon: Boxes },
   { href: "/devices", label: "Aparelhos", icon: Smartphone },

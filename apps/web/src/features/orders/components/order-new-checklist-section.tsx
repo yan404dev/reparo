@@ -1,10 +1,8 @@
 import React from "react";
 import { UseFormReturn } from "react-hook-form";
-import { ClipboardList } from "lucide-react";
 import { CreateServiceOrderInput } from "@fluxos/contracts";
-import { Input } from "@/components/ui";
+import { Input, SectionDivider } from "@/components/ui";
 import { OrderChecklistForm } from "./order-checklist-form";
-import { FormSectionDivider } from "./form-section-divider";
 
 interface OrderNewChecklistSectionProps {
   form: UseFormReturn<CreateServiceOrderInput>;
@@ -16,16 +14,16 @@ export function OrderNewChecklistSection({ form }: OrderNewChecklistSectionProps
 
   return (
     <div className="space-y-5">
-      <FormSectionDivider icon={ClipboardList} title="Checklist de Integridade na Entrada" />
+      <SectionDivider label="Checklist de Integridade na Entrada" />
 
       <OrderChecklistForm
         checklist={currentChecklist}
         onChange={(updated) => setValue("entryChecklist", updated)}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+          <label className="block text-sm font-medium text-foreground mb-1">
             Saúde da Bateria (%)
           </label>
           <Input
@@ -37,12 +35,12 @@ export function OrderNewChecklistSection({ form }: OrderNewChecklistSectionProps
               setValue("entryChecklist.batteryHealth", e.target.value ? Number(e.target.value) : null)
             }
             placeholder="Ex: 84"
-            className="h-9"
+            className="h-9 text-sm"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+          <label className="block text-sm font-medium text-foreground mb-1">
             Condição da Carcaça
           </label>
           <select

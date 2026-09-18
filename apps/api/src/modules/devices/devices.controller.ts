@@ -10,9 +10,14 @@ export class DevicesController {
   constructor(private devicesService: DevicesService) {}
 
   @Get()
-  async findAll(@Query("search") search?: string) {
-    return this.devicesService.findAll(search);
+  async findAll(
+    @Query("search") search?: string,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number
+  ) {
+    return this.devicesService.findAll(search, page, limit);
   }
+
 
   @Get("imei/:imei")
   async findByImei(@Param("imei") imei: string) {

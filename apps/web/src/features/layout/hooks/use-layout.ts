@@ -37,10 +37,8 @@ export function useLayout() {
         try {
           setUser(JSON.parse(stored));
         } catch {
-          setUser({ id: "1", name: "Carlos Técnico", email: "carlos@fluxos.com", role: "TECNICO" });
+          setUser(null);
         }
-      } else {
-        setUser({ id: "1", name: "Carlos Técnico", email: "carlos@fluxos.com", role: "TECNICO" });
       }
     }
   }, []);
@@ -49,7 +47,7 @@ export function useLayout() {
     if (typeof window !== "undefined") {
       localStorage.removeItem("fluxos_token");
       localStorage.removeItem("fluxos_user");
-      router.push("/login");
+      router.push("/auth?mode=login");
     }
   };
 

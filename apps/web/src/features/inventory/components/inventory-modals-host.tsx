@@ -41,7 +41,7 @@ export function InventoryModalsHost({ categories, parts }: InventoryModalsHostPr
         />
       )}
 
-      {modal === "new-part" && (
+      {(modal === "new-part" || modal === "new") && (
         <CreatePartModal
           categories={categories}
           onClose={handleClose}

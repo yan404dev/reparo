@@ -1,9 +1,11 @@
 import React from "react";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { KpiMetricCards } from "@/features/dashboard/components/kpi-metric-cards";
 import { RecentOrdersCard } from "@/features/dashboard/components/recent-orders-card";
 import { LowStockCard } from "@/features/dashboard/components/low-stock-card";
+import { ShareIntakeLinkButton } from "@/features/dashboard/components/share-intake-link-button";
 import { serverApiFetch } from "@/lib/server-api";
 import { DashboardMetricsDTO } from "@fluxos/contracts";
 
@@ -20,11 +22,25 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl md:text-3xl font-semibold tracking-tight shrink-0">Visão Geral</h1>
-        <Button size="sm" className="shadow-none" asChild>
-          <Link href="/orders/new">Nova Ordem</Link>
-        </Button>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
+            Visão Geral
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Acompanhe a movimentação da bancada técnica e alertas de estoque
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2.5">
+          <ShareIntakeLinkButton />
+          <Button size="sm" className="shadow-none h-9 text-sm font-medium gap-1.5" asChild>
+            <Link href="/orders/new">
+              <Plus className="w-4 h-4" />
+              <span>Nova ordem de serviço</span>
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <KpiMetricCards metrics={metrics} />

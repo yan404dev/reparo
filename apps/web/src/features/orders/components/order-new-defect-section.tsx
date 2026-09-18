@@ -1,9 +1,7 @@
 import React from "react";
 import { UseFormReturn } from "react-hook-form";
-import { Wrench } from "lucide-react";
 import { CreateServiceOrderInput } from "@fluxos/contracts";
-import { Input } from "@/components/ui";
-import { FormSectionDivider } from "./form-section-divider";
+import { Input, SectionDivider } from "@/components/ui";
 
 interface OrderNewDefectSectionProps {
   form: UseFormReturn<CreateServiceOrderInput>;
@@ -15,11 +13,11 @@ export function OrderNewDefectSection({ form, technicians }: OrderNewDefectSecti
 
   return (
     <div className="space-y-4">
-      <FormSectionDivider icon={Wrench} title="Defeito Relatado & Responsável" />
+      <SectionDivider label="Defeito Relatado & Responsável" />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="md:col-span-2">
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+          <label className="block text-sm font-medium text-foreground mb-1">
             Defeito Relatado pelo Cliente *
           </label>
           <Input
@@ -34,7 +32,7 @@ export function OrderNewDefectSection({ form, technicians }: OrderNewDefectSecti
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
+          <label className="block text-sm font-medium text-foreground mb-1">
             Técnico Responsável
           </label>
           <select

@@ -181,3 +181,18 @@ export interface DashboardMetricsDTO {
   recentOrders: ServiceOrderDTO[];
   lowStockParts: PartDTO[];
 }
+
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  totalItems: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+export interface PaginatedResponseDTO<T> {
+  data: T[];
+  meta: PaginationMeta;
+}
+

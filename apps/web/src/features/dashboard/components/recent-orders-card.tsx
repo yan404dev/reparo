@@ -1,19 +1,19 @@
 import React from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
-import { StatusBadge } from "@/features/orders/components/order-status-badge";
 import { ServiceOrderDTO } from "@fluxos/contracts";
 import {
   Card,
   CardContent,
-  Badge,
   Table,
   TableHeader,
   TableBody,
   TableRow,
   TableHead,
   TableCell,
+  Button,
 } from "@/components/ui";
+import { RecentOrdersTableRow } from "./recent-orders-table-row";
 
 interface RecentOrdersCardProps {
   orders: ServiceOrderDTO[];
@@ -24,17 +24,15 @@ export function RecentOrdersCard({ orders }: RecentOrdersCardProps) {
     <Card className="shadow-none">
       <CardContent className="p-4 md:p-5">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-base font-semibold tracking-tight">Ordens de Serviço Recentes</h2>
-            <Badge>{orders.length}</Badge>
-          </div>
-          <Link
-            href="/orders"
-            className="text-xs font-semibold text-primary hover:underline flex items-center gap-1"
-          >
-            <span>Ver todas</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </Link>
+          <h2 className="text-base font-semibold tracking-tight">
+            Ordens de Serviço Recentes
+          </h2>
+          <Button variant="outline" size="sm" asChild className="h-8 px-3 text-xs font-semibold shadow-none bg-white">
+            <Link href="/orders" className="flex items-center gap-1.5 text-foreground hover:text-primary">
+              <span>Ver todas</span>
+              <ArrowUpRight className="w-4 h-4" />
+            </Link>
+          </Button>
         </div>
 
         <Table>
@@ -44,38 +42,22 @@ export function RecentOrdersCard({ orders }: RecentOrdersCardProps) {
               <TableHead className="text-sm">Cliente & Aparelho</TableHead>
               <TableHead className="text-sm">Status</TableHead>
               <TableHead className="text-sm text-right">Total Geral</TableHead>
+              <TableHead className="text-sm text-right pr-3">Ações</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-sm text-muted-foreground py-8">
+                <TableCell
+                  colSpan={5}
+                  className="text-center text-sm text-muted-foreground py-8"
+                >
                   Nenhuma ordem cadastrada no momento.
                 </TableCell>
               </TableRow>
             ) : (
               orders.slice(0, 5).map((order) => (
-                <TableRow key={order.id}>
-                  <TableCell className="text-sm py-2.5 font-semibold text-primary">
-                    <Link href={`/orders/${order.id}`} className="hover:underline">
-                      #{order.orderNumber}
-                    </Link>
-                  </TableCell>
-                  <TableCell className="text-sm py-2.5">
-                    <div>
-                      <p className="font-semibold text-foreground">{order.customer?.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {order.device?.model} • IMEI: {order.device?.imei}
-                      </p>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm py-2.5">
-                    <StatusBadge status={order.status} />
-                  </TableCell>
-                  <TableCell className="text-sm py-2.5 text-right font-bold tabular-nums">
-                    {order.displayTotalPrice}
-                  </TableCell>
-                </TableRow>
+                <RecentOrdersTableRow key={order.id} order={order} />
               ))
             )}
           </TableBody>

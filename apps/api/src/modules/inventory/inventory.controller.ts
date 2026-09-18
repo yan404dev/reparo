@@ -14,9 +14,16 @@ export class InventoryController {
   constructor(private inventoryService: InventoryService) {}
 
   @Get("parts")
-  async findAll(@Query("categoryId") categoryId?: string, @Query("category") category?: string, @Query("search") search?: string) {
-    return this.inventoryService.findAll(categoryId || category, search);
+  async findAll(
+    @Query("categoryId") categoryId?: string,
+    @Query("category") category?: string,
+    @Query("search") search?: string,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number
+  ) {
+    return this.inventoryService.findAll(categoryId || category, search, page, limit);
   }
+
 
   @Get("parts/compatible")
   async findCompatible(@Query("model") model: string) {
@@ -59,7 +66,12 @@ export class InventoryController {
   }
 
   @Get("movements")
-  async getMovements(@Query("partId") partId?: string) {
-    return this.inventoryService.getMovements(partId);
+  async getMovements(
+    @Query("partId") partId?: string,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number
+  ) {
+    return this.inventoryService.getMovements(partId, page, limit);
   }
 }
+

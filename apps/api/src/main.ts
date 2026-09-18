@@ -21,7 +21,7 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle("FluxOS API")
+    .setTitle("Reparô API")
     .setDescription("API de Gestão de Ordens de Serviço e Estoque de Smartphones")
     .setVersion("1.0")
     .addBearerAuth()
@@ -32,7 +32,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3001;
   await app.listen(port);
-  console.log(`FluxOS API executando na porta ${port}`);
+  console.log(`Reparô API executando na porta ${port}`);
 }
 
 bootstrap();

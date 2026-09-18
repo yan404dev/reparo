@@ -39,3 +39,21 @@ export function cleanPhoneForWhatsApp(phone: string): string {
   }
   return digits;
 }
+
+export function formatCurrencyMask(val: number | string | null | undefined): string {
+  if (val === null || val === undefined || val === "") return "";
+  const numeric = typeof val === "number" ? val : parseFloat(String(val).replace(/\D/g, "")) / 100;
+  if (Number.isNaN(numeric)) return "";
+
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(numeric);
+}
+
+export function parseCurrencyToNumber(val: string | number): number {
+  if (typeof val === "number") return val;
+  const digits = cleanDigits(val);
+  if (!digits) return 0;
+  return parseFloat(digits) / 100;
+}

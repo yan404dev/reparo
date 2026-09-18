@@ -4,6 +4,7 @@ import { CreateCustomerInput, CustomerTimelineEventDTO, formatDocument } from "@
 import { OrderStatus } from "@prisma/client";
 import { PricingCalculatorService } from "../orders/services/pricing-calculator.service";
 import { WhatsAppBuilderService } from "../orders/services/whatsapp-builder.service";
+import { buildPaginatedResponse } from "../../common/utils/pagination.util";
 
 @Injectable()
 export class CustomersService {
@@ -13,36 +14,47 @@ export class CustomersService {
     private whatsappService: WhatsAppBuilderService
   ) {}
 
-  async findAll(search?: string) {
-    const customers = await this.prisma.customer.findMany({
-      where: search
-        ? {
-            OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { phone: { contains: search } },
-              { document: { contains: search } },
-            ],
-          }
-        : undefined,
-      include: {
-        devices: true,
-        orders: {
-          select: {
-            id: true,
-            orderNumber: true,
-            status: true,
-            grandTotal: true,
-            createdAt: true,
+  async findAll(search?: string, page?: number, limit?: number) {
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.max(1, Number(limit) || 10);
+    const skip = (safePage - 1) * safeLimit;
+
+    const where = search
+      ? {
+          OR: [
+            { name: { contains: search, mode: "insensitive" as const } },
+            { phone: { contains: search } },
+            { document: { contains: search } },
+          ],
+        }
+      : undefined;
+
+    const [total, customers] = await Promise.all([
+      this.prisma.customer.count({ where }),
+      this.prisma.customer.findMany({
+        where,
+        include: {
+          devices: true,
+          orders: {
+            select: {
+              id: true,
+              orderNumber: true,
+              status: true,
+              grandTotal: true,
+              createdAt: true,
+            },
+          },
+          _count: {
+            select: { orders: true },
           },
         },
-        _count: {
-          select: { orders: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: safeLimit,
+      }),
+    ]);
 
-    return customers.map((c) => {
+    const formatted = customers.map((c) => {
       const orderCount = c._count?.orders ?? c.orders.length;
       const totalSpent = c.orders.reduce((acc, o) => acc + Number(o.grandTotal || 0), 0);
       const activeOrdersCount = c.orders.filter(
@@ -59,7 +71,10 @@ export class CustomersService {
         whatsappUrl: this.whatsappService.buildCustomerContactUrl(c.name, c.phone),
       };
     });
+
+    return buildPaginatedResponse(formatted, total, safePage, safeLimit);
   }
+
 
   async findByDocument(document: string) {
     const cleanDoc = document.replace(/\D/g, "");

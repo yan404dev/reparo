@@ -7,6 +7,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema } from "@fluxos/contracts";
 import { LoginFormValues } from "../types";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
 export function useLoginForm() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -14,22 +16,26 @@ export function useLoginForm() {
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(LoginSchema),
     defaultValues: {
-      email: "admin@fluxos.com",
-      password: "admin123",
+      email: "",
+      password: "",
     },
   });
 
   const onSubmit = async (values: LoginFormValues) => {
     setError(null);
     try {
-      const res = await fetch("http://localhost:3001/auth/login", {
+      const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
 
       if (!res.ok) {
-        throw new Error("Credenciais inválidas. Verifique seu e-mail e senha.");
+        const errorData = await res.json().catch(() => ({}));
+        const errorMessage = Array.isArray(errorData.message)
+          ? errorData.message.join(", ")
+          : errorData.message || "Credenciais inválidas. Verifique seu e-mail e senha.";
+        throw new Error(errorMessage);
       }
 
       const data = await res.json();
@@ -37,9 +43,13 @@ export function useLoginForm() {
       localStorage.setItem("fluxos_user", JSON.stringify(data.user));
       document.cookie = `fluxos_token=${data.accessToken}; path=/; max-age=604800; SameSite=Lax`;
 
-      router.push("/");
-    } catch (err: any) {
-      setError(err.message);
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Erro ao acessar. Tente novamente.");
+      }
     }
   };
 

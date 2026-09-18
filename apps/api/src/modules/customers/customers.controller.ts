@@ -10,9 +10,14 @@ export class CustomersController {
   constructor(private customersService: CustomersService) {}
 
   @Get()
-  async findAll(@Query("search") search?: string) {
-    return this.customersService.findAll(search);
+  async findAll(
+    @Query("search") search?: string,
+    @Query("page") page?: number,
+    @Query("limit") limit?: number
+  ) {
+    return this.customersService.findAll(search, page, limit);
   }
+
 
   @Get("by-document/:document")
   async findByDocument(@Param("document") document: string) {

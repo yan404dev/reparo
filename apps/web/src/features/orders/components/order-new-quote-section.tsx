@@ -3,12 +3,10 @@
 import React from "react";
 import { UseFormReturn } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
-import { Calculator, Sparkles } from "lucide-react";
 import { CreateServiceOrderInput, PartDTO } from "@fluxos/contracts";
 import { apiRequest } from "@/lib/api";
 import { formatCurrency } from "@/lib/utils";
-import { Input } from "@/components/ui";
-import { FormSectionDivider } from "./form-section-divider";
+import { SectionDivider, CurrencyInput } from "@/components/ui";
 
 interface OrderNewQuoteSectionProps {
   form: UseFormReturn<CreateServiceOrderInput>;
@@ -46,76 +44,62 @@ export function OrderNewQuoteSection({ form, currentModel }: OrderNewQuoteSectio
 
   return (
     <div className="space-y-4">
-      <FormSectionDivider icon={Calculator} title="Orçamento & Peças Iniciais (Opcional)" />
+      <SectionDivider label="Orçamento & Peças Iniciais (Opcional)" />
 
-      <p className="text-xs text-muted-foreground">
-        Consulte o catálogo de peças compatíveis, ajuste o preço de venda da peça e defina sua mão de obra. O total é calculado automaticamente.
+      <p className="text-sm text-muted-foreground">
+        Consulte o catálogo de peças compatíveis, ajuste o preço de venda da peça e defina sua mão de obra.
       </p>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-            Peça no Estoque {currentModel ? `(Compatível com ${currentModel})` : ""}
+          <label className="block text-sm font-medium text-foreground mb-1">
+            Peça no Estoque {currentModel ? `(Compatível)` : ""}
           </label>
           <select
             value={quote.partId || ""}
             onChange={(e) => handlePartSelect(e.target.value)}
-            className="w-full h-9 bg-white border border-input rounded-md px-3 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+            className="w-full h-9 bg-white border border-input rounded-md px-3 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
           >
-            <option value="">Nenhuma peça selecionada...</option>
-            {compatibleParts.map((part) => (
-              <option key={part.id} value={part.id}>
-                {part.name} • {formatCurrency(part.sellingPrice)} ({part.stockPhysical - part.stockReserved} em estoque)
+            <option value="">Nenhuma peça (Apenas Serviço)</option>
+            {compatibleParts.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} — Disp: {p.stockAvailable} ({formatCurrency(p.sellingPrice)})
               </option>
             ))}
           </select>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-            Preço Variável da Peça (R$)
+          <label className="block text-sm font-medium text-foreground mb-1">
+            Preço da Peça
           </label>
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            value={quote.partPrice ?? ""}
-            onChange={(e) => setValue("initialQuote.partPrice", e.target.value ? Number(e.target.value) : 0)}
-            placeholder="Ex: 350.00"
-            className="h-9 text-sm"
+          <CurrencyInput
+            value={partPrice}
+            onChange={(val) => setValue("initialQuote.partPrice", val)}
+            placeholder="R$ 0,00"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted-foreground mb-1.5">
-            Mão de Obra do Técnico (R$)
+          <label className="block text-sm font-medium text-foreground mb-1">
+            Mão de Obra
           </label>
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            value={quote.laborPrice ?? ""}
-            onChange={(e) => setValue("initialQuote.laborPrice", e.target.value ? Number(e.target.value) : 0)}
-            placeholder="Ex: 120.00"
-            className="h-9 text-sm"
+          <CurrencyInput
+            value={laborPrice}
+            onChange={(val) => setValue("initialQuote.laborPrice", val)}
+            placeholder="R$ 0,00"
           />
         </div>
       </div>
 
-      {totalPreview > 0 && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-emerald-950">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
-            <span>
-              Peça: <strong>{formatCurrency(partPrice)}</strong> + Mão de Obra: <strong>{formatCurrency(laborPrice)}</strong>
-            </span>
-          </div>
-          <div className="text-right">
-            <span className="text-[11px] text-emerald-700 block">Total do Orçamento</span>
-            <span className="text-base font-bold text-emerald-900">{formatCurrency(totalPreview)}</span>
-          </div>
-        </div>
-      )}
+      <div className="flex items-center justify-between py-3 border-t border-border mt-2">
+        <span className="text-sm text-muted-foreground">
+          Total Previsto do Orçamento
+        </span>
+        <span className="text-base font-semibold text-foreground tabular-nums">
+          {formatCurrency(totalPreview)}
+        </span>
+      </div>
     </div>
   );
 }

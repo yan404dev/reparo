@@ -1,9 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
-import { AddOrderItemInput, CreateServiceOrderInput } from "@fluxos/contracts";
+import { AddOrderItemInput, CreateServiceOrderInput, PublicCustomerIntakeInput } from "@fluxos/contracts";
 import { OrderStatus, OrderItemType, StockMovementType } from "@prisma/client";
 import { PricingCalculatorService } from "./services/pricing-calculator.service";
 import { WhatsAppBuilderService } from "./services/whatsapp-builder.service";
+
+import { buildPaginatedResponse } from "../../common/utils/pagination.util";
 
 @Injectable()
 export class OrdersService {
@@ -13,31 +15,44 @@ export class OrdersService {
     private whatsappService: WhatsAppBuilderService
   ) {}
 
-  async findAll(status?: OrderStatus, search?: string) {
-    const orders = await this.prisma.serviceOrder.findMany({
-      where: {
-        status: status || undefined,
-        OR: search
-          ? [
-              { customer: { name: { contains: search, mode: "insensitive" } } },
-              { customer: { phone: { contains: search } } },
-              { device: { imei: { contains: search } } },
-              { device: { model: { contains: search, mode: "insensitive" } } },
-            ]
-          : undefined,
-      },
-      include: {
-        customer: true,
-        device: true,
-        technician: { select: { id: true, name: true, email: true } },
-        attendant: { select: { id: true, name: true, email: true } },
-        items: { include: { part: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+  async findAll(status?: OrderStatus, search?: string, page?: number, limit?: number) {
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.max(1, Number(limit) || 10);
+    const skip = (safePage - 1) * safeLimit;
 
-    return orders.map(this.formatOrder);
+    const where = {
+      status: status || undefined,
+      OR: search
+        ? [
+            { customer: { name: { contains: search, mode: "insensitive" as const } } },
+            { customer: { phone: { contains: search } } },
+            { device: { imei: { contains: search } } },
+            { device: { model: { contains: search, mode: "insensitive" as const } } },
+          ]
+        : undefined,
+    };
+
+    const [total, orders] = await Promise.all([
+      this.prisma.serviceOrder.count({ where }),
+      this.prisma.serviceOrder.findMany({
+        where,
+        include: {
+          customer: true,
+          device: true,
+          technician: { select: { id: true, name: true, email: true } },
+          attendant: { select: { id: true, name: true, email: true } },
+          items: { include: { part: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: safeLimit,
+      }),
+    ]);
+
+    const formatted = orders.map(this.formatOrder);
+    return buildPaginatedResponse(formatted, total, safePage, safeLimit);
   }
+
 
   async findById(id: string) {
     const order = await this.prisma.serviceOrder.findUnique({
@@ -122,6 +137,45 @@ export class OrdersService {
       OrderStatus.CANCELADA,
       order.attendantId,
       `Orçamento recusado pelo cliente via Portal Público${rejectionReason ? `: ${rejectionReason}` : ""}`
+    );
+  }
+
+  async createPublicIntake(data: PublicCustomerIntakeInput) {
+    const adminUser = await this.prisma.user.findFirst({
+      orderBy: { createdAt: "asc" },
+      select: { id: true },
+    });
+
+    if (!adminUser) {
+      throw new BadRequestException("Nenhum usuário administrador configurado no sistema");
+    }
+
+    const defaultChecklist = {
+      screenBroken: false,
+      touchWorks: true,
+      faceIdWorking: true,
+      camerasOk: true,
+      audioOk: true,
+      chargePortWorking: true,
+      batteryHealth: null,
+      casingCondition: "BOM" as const,
+      photoUrls: [],
+      cosmeticPhotos: [],
+    };
+
+    return this.create(
+      {
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        customerDocument: data.customerDocument,
+        customerEmail: data.customerEmail,
+        deviceBrand: data.deviceBrand,
+        deviceModel: data.deviceModel,
+        deviceColor: data.deviceColor,
+        reportedDefect: data.reportedDefect,
+        entryChecklist: defaultChecklist,
+      },
+      adminUser.id
     );
   }
 

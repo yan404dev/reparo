@@ -1,32 +1,47 @@
 import { Injectable, ConflictException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../../prisma/prisma.service";
 import { CreateDeviceInput } from "@fluxos/contracts";
+import { buildPaginatedResponse } from "../../common/utils/pagination.util";
 
 @Injectable()
 export class DevicesService {
   constructor(private prisma: PrismaService) {}
 
-  async findAll(search?: string) {
-    return this.prisma.device.findMany({
-      where: search
-        ? {
-            OR: [
-              { imei: { contains: search } },
-              { model: { contains: search, mode: "insensitive" } },
-              { brand: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : undefined,
-      include: {
-        customer: true,
-        orders: {
-          orderBy: { createdAt: "desc" },
-          take: 5,
+  async findAll(search?: string, page?: number, limit?: number) {
+    const safePage = Math.max(1, Number(page) || 1);
+    const safeLimit = Math.max(1, Number(limit) || 10);
+    const skip = (safePage - 1) * safeLimit;
+
+    const where = search
+      ? {
+          OR: [
+            { imei: { contains: search } },
+            { model: { contains: search, mode: "insensitive" as const } },
+            { brand: { contains: search, mode: "insensitive" as const } },
+          ],
+        }
+      : undefined;
+
+    const [total, devices] = await Promise.all([
+      this.prisma.device.count({ where }),
+      this.prisma.device.findMany({
+        where,
+        include: {
+          customer: true,
+          orders: {
+            orderBy: { createdAt: "desc" },
+            take: 5,
+          },
         },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: safeLimit,
+      }),
+    ]);
+
+    return buildPaginatedResponse(devices, total, safePage, safeLimit);
   }
+
 
   async findByImei(imei: string) {
     const device = await this.prisma.device.findUnique({

@@ -1,18 +1,11 @@
 "use client";
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui";
-import { cn } from '@/lib/utils';
-import { CircleUser, LogOut, Settings } from "lucide-react";
+import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 import { NAV_ITEMS } from "../../constants/navigation";
+import { UserMenu } from "./user-menu";
 
 export function Header() {
   const pathname = usePathname();
@@ -20,10 +13,10 @@ export function Header() {
     pathname === href || (href !== "/" && pathname.startsWith(href));
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-white hidden md:block">
-      <div className="container mx-auto flex h-14 items-center justify-between">
+    <header className="sticky top-0 z-50 border-b border-[#DEE3E9] bg-white hidden md:block">
+      <div className="container mx-auto flex h-14 items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-8">
-          <Link href="/" className="text-lg font-bold tracking-tight">
+          <Link href="/dashboard" className="text-lg font-bold tracking-tight text-[#1c2b33]">
             Reparô
           </Link>
 
@@ -33,46 +26,25 @@ export function Header() {
                 key={href}
                 href={href}
                 className={cn(
-                  "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                  "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
                   isActive(href)
-                    ? "bg-primary/10 text-primary font-semibold"
-                    : "text-muted-foreground hover:bg-gray-100 hover:text-foreground",
+                    ? "bg-[#1c2b33]/10 text-[#1c2b33] font-semibold"
+                    : "text-[#606770] hover:bg-neutral-100 hover:text-[#1c2b33]"
                 )}
               >
-                <Icon size={16} strokeWidth={1.8} />
-                {label}
+                <Icon className="h-4 w-4" />
+                <span>{label}</span>
               </Link>
             ))}
           </nav>
         </div>
 
         <div className="flex items-center gap-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger className="flex items-center gap-2 rounded-md p-1.5 transition-colors hover:bg-gray-100 focus:outline-none">
-              <CircleUser size={24} strokeWidth={1.5} className="text-muted-foreground" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="font-normal">
-                <div className="flex flex-col gap-1">
-                  <p className="text-sm font-medium">Técnico Responsável</p>
-                  <p className="text-xs text-muted-foreground">tecnico@reparo.com.br</p>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer">
-                <Settings size={14} />
-                Configurações
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive">
-                <LogOut size={14} />
-                Sair
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <UserMenu />
         </div>
       </div>
     </header>
   );
 }
+
 export default Header;

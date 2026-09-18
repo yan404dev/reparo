@@ -1,31 +1,36 @@
 import React from "react";
-import { DeviceDTO } from "@fluxos/contracts";
+import { DeviceDTO, PaginatedResponseDTO } from "@fluxos/contracts";
 import { serverApiFetch } from "@/lib/server-api";
-import { Card, CardContent } from "@/components/ui";
+import { Card, CardContent, TablePaginationFooter } from "@/components/ui";
 import { DevicesTable } from "@/features/devices/components/devices-table";
 import { DevicesSearchInput } from "@/features/devices/components/devices-search-input";
 
 interface DevicesPageProps {
   searchParams: Promise<{
     search?: string;
+    page?: string;
   }>;
 }
 
 export default async function DevicesPage({ searchParams }: DevicesPageProps) {
-  const { search } = await searchParams;
+  const resolvedParams = await searchParams;
+  const search = resolvedParams.search || "";
+  const page = Math.max(1, Number(resolvedParams.page) || 1);
 
   const queryParams = new URLSearchParams();
   if (search) queryParams.set("search", search);
+  queryParams.set("page", String(page));
+  queryParams.set("limit", "10");
 
-  const queryString = queryParams.toString();
-  const endpoint = queryString ? `/devices?${queryString}` : "/devices";
+  const endpoint = `/devices?${queryParams.toString()}`;
 
-  let devices: DeviceDTO[] = [];
-  try {
-    devices = await serverApiFetch<DeviceDTO[]>(endpoint);
-  } catch {
-    devices = [];
-  }
+  const response = await serverApiFetch<PaginatedResponseDTO<DeviceDTO>>(endpoint).catch(() => ({
+    data: [],
+    meta: { page: 1, limit: 10, totalItems: 0, totalPages: 1, hasNextPage: false, hasPreviousPage: false },
+  }));
+
+  const devices = response.data;
+  const { meta } = response;
 
   return (
     <div className="space-y-6">
@@ -45,10 +50,16 @@ export default async function DevicesPage({ searchParams }: DevicesPageProps) {
       </div>
 
       <Card className="shadow-none">
-        <CardContent className="p-4 md:p-5">
+        <CardContent className="p-4 md:p-5 pb-0">
           <DevicesTable devices={devices} />
         </CardContent>
+        <TablePaginationFooter
+          page={meta.page}
+          totalPages={meta.totalPages}
+          totalItems={meta.totalItems}
+        />
       </Card>
     </div>
   );
 }
+
