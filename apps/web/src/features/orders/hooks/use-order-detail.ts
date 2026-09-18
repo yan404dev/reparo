@@ -18,10 +18,13 @@ export function useOrderDetail(id: string) {
 
   const { data: compatibleParts = [] } = useQuery<PartDTO[]>({
     queryKey: ["compatible-parts", order?.device?.model],
-    queryFn: () =>
-      order?.device?.model
-        ? apiRequest(`/inventory/parts/compatible?model=${encodeURIComponent(order.device.model)}`)
-        : apiRequest("/inventory/parts"),
+    queryFn: async () => {
+      if (order?.device?.model) {
+        return apiRequest(`/inventory/parts/compatible?model=${encodeURIComponent(order.device.model)}`);
+      }
+      const res = await apiRequest("/inventory/parts?limit=50");
+      return Array.isArray(res) ? res : res?.data || [];
+    },
     enabled: !!order?.device?.model,
   });
 

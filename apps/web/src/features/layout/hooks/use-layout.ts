@@ -12,21 +12,33 @@ export function useLayout() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
-  const { data: orders = [] } = useQuery({
+  const { data: ordersData } = useQuery({
     queryKey: ["layout-orders-count"],
     queryFn: () => apiRequest("/orders"),
   });
 
-  const { data: parts = [] } = useQuery({
+  const { data: partsData } = useQuery({
     queryKey: ["layout-parts-count"],
     queryFn: () => apiRequest("/inventory/parts"),
   });
 
-  const activeOrdersCount = orders.filter(
+  const ordersList: any[] = Array.isArray(ordersData)
+    ? ordersData
+    : Array.isArray(ordersData?.data)
+      ? ordersData.data
+      : [];
+
+  const partsList: any[] = Array.isArray(partsData)
+    ? partsData
+    : Array.isArray(partsData?.data)
+      ? partsData.data
+      : [];
+
+  const activeOrdersCount = ordersList.filter(
     (o: any) => o.status !== "FINALIZADA" && o.status !== "CANCELADA"
   ).length;
 
-  const lowStockCount = parts.filter(
+  const lowStockCount = partsList.filter(
     (p: any) => p.stockAvailable <= p.minStockThreshold
   ).length;
 

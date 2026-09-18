@@ -22,10 +22,13 @@ export function OrderNewQuoteSection({ form, currentModel }: OrderNewQuoteSectio
 
   const { data: compatibleParts = [] } = useQuery<PartDTO[]>({
     queryKey: ["compatible-parts-lookup", currentModel],
-    queryFn: () =>
-      currentModel
-        ? apiRequest(`/inventory/parts/compatible?model=${encodeURIComponent(currentModel)}`)
-        : apiRequest("/inventory/parts"),
+    queryFn: async () => {
+      if (currentModel) {
+        return apiRequest(`/inventory/parts/compatible?model=${encodeURIComponent(currentModel)}`);
+      }
+      const res = await apiRequest("/inventory/parts?limit=50");
+      return Array.isArray(res) ? res : res?.data || [];
+    },
     staleTime: 1000 * 60,
   });
 
